@@ -4,18 +4,20 @@
             [clojure.test.check.generators]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
-            [com.blakwurm.lytek.spec]))
+            [com.blakwurm.lytek.spec]
+            [clojure.java.jdbc :as jdbc])
+  (:import (clojure.lang Keyword)))
 
 (defn optional [a] (schema/optional-key a))
 (defn required [a] a)
 
 (def query-params
-  {:character-type {:opt? optional :pristmatic-type String :param-type :query-filter}
-   :name           {:opt? optional :pristmatic-type String :param-type :query-filter}
-   :id             {:opt? optional :pristmatic-type String :param-type :query-filter}
-   :category       {:opt? optional :pristmatic-type String :param-type :query-filter}
-   :amount         {:opt? optional :pristmatic-type Number :param-type :query-modifier}
-   :owner          {:opt? optional :pristmatic-type String :param-type :query-filter}})
+  {:character-type {:opt? optional :rowtype :text :pristmatic-type Keyword :param-type :query-filter}
+   :name           {:opt? optional :rowtype :text :pristmatic-type String :param-type :query-filter}
+   :id             {:opt? optional :rowtype :text :pristmatic-type String :param-type :query-filter}
+   :category       {:opt? optional :rowtype :text :pristmatic-type String :param-type :query-filter}
+   :amount         {:opt? optional :rowtype :number :pristmatic-type Number :param-type :query-modifier}
+   :owner          {:opt? optional :rowtype :text :pristmatic-type String :param-type :query-filter}})
 
 (defn params-to-prismatic [qp's]
   (into {}
@@ -68,6 +70,7 @@
 (def api-v1-resource
   (yada/resource
     {:produces   "application/json"
+
      :methods    {:get    #'api-read
                   :put    #'api-update
                   :post   #'api-create
@@ -80,7 +83,7 @@
 (defn start-server []
   (reset! *server
           (yada/listener
-            ["/api/" {"asdf/v1/" api-v1-resource}]
+            ["/api/" {"asdf/v1" api-v1-resource}]
             {:port 3000})))
 
 (defn stop-server []
