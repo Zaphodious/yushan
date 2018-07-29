@@ -1,2 +1,2 @@
 #!/bin/bash
-clj -Spom
+clojure -Spom

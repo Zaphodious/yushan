@@ -104,7 +104,7 @@
     :fire
     :earth})
 
-(s/def :lytek/character-type
+(s/def :lytek/subcategory
   (se/union solar-castes
             terrestrial-aspects))      
 
@@ -205,6 +205,7 @@
 (s/def :lytek/entity
   (s/keys :req-un [:lytek/id
                    :lytek/category
+                   :lytek/subcategory
                    :lytek/name
                    :lytek/description]))
 
@@ -221,7 +222,7 @@
 (s/def :lytek/character
   (s/and
     (s/merge :lytek/combatant
-             (s/keys :req-un [:lytek/character-type
+             (s/keys :req-un [:lytek/subcategory
                               :lytek/anima
                               :lytek/rulebooks
                               :lytek/charms
@@ -245,4 +246,4 @@
                              :lytek/limit-accrued
                              :lytek/supernal
                              :lytek/favored-abilities]))
-    #(contains? solar-castes (:character-type %))))
+    #(contains? solar-castes (:subcategory %))))
