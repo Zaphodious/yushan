@@ -21,15 +21,25 @@
 (defn optional [a] (schema/optional-key a))
 (defn required [a] a)
 
+(defn sql-transform-basic [[k v]]
+  [:= k v])
+(defn sql-transform-rest [[k v]]
+  [:like :rest (str "%" k " " v "%")])
+
 (def query-params
-  {:subcategory    {:opt? optional :pristmatic-type Keyword :write-as name :read-as keyword :param-type :query-filter :row-type :text}
-   :name           {:opt? optional :pristmatic-type String :param-type :query-filter :row-type :text}
-   :id             {:opt? optional :pristmatic-type String :param-type :query-filter :row-type :int :sql-extra [:primary :key]}
-   :category       {:opt? optional :pristmatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text}
-   :perpage        {:opt? optional :pristmatic-type Number :param-type :query-modifier}
-   :pagenumber     {:opt? optional :pristmatic-type Number :param-type :query-modifier}
-   :description    {:param-type :row :row-type :text}
-   :rest           {:param-type :row :row-type :text}})
+  {:subcategory {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text}
+   :name        {:opt? optional :prismatic-type String :param-type :query-filter :row-type :text}
+   :id          {:opt? optional :prismatic-type String :param-type :query-filter :row-type :int :sql-extra [:primary :key]}
+   :category    {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text}
+   :supernal    {:opt? optional :prismatic-type Keyword :param-type :query-filter}
+   :perpage     {:opt? optional :prismatic-type Number :param-type :query-modifier}
+   :pagenumber  {:opt? optional :prismatic-type Number :param-type :query-modifier}
+   :description {:param-type :row :row-type :text}
+   :rest        {:param-type :row :row-type :text}})
+
+(def test-query
+  {:subcategory "dawn"
+   :name "Mubaraka"})
 
 (defn params-to-db-rows [qp's]
   (->> qp's
@@ -83,18 +93,20 @@
 
 (def test-honey-query
   {:select [:*]
-   :from [:entities]
-   :where [:and  [:like :rest "%:supernal :athletics%"]]})
+   :limit 10
+   :offset 10
+   :from   [:entities]
+   :where  [:and [:like :rest "%:supernal :athletics%"]]})
+            ;[:like :rest "%:martial-arts 3%"]
+            ;[:like :rest "%:wits 3%"]]})
 
-(defn read-entity [params]
-  (async/go (map #(hydrate-entity-after-selection query-params %)
-                 (jdbc/query db-connection (hsql/format test-honey-query)))))
+
 
 (defn insert-test-entity []
-    (try
-      (write-entity! (gen/generate (s/gen :lytek/solar)))
-      (catch Exception e
-        e)))
+  (try
+    (write-entity! (gen/generate (s/gen :lytek/solar)))
+    (catch Exception e
+      e)))
 
 (defn insert-some-test-entities! []
   (async/go (dotimes [n 100000] (insert-test-entity))))
@@ -111,42 +123,47 @@
 
 (defn params-to-prismatic [qp's]
   (into {}
-        (map (fn [[query-key {:keys [opt? pristmatic-type param-type]}]]
+        (map (fn [[query-key {:keys [opt? prismatic-type param-type]}]]
                (if opt?
-                 [(opt? query-key) pristmatic-type]))
+                 [(opt? query-key) prismatic-type]))
              qp's)))
 
 (defn params-by-param-type [qp's]
-  (reduce (fn [ds [query-key {:keys [opt? pristmatic-type param-type]}]]
+  (reduce (fn [ds [query-key {:keys [opt? prismatic-type param-type]}]]
             (assoc ds param-type (conj (or (get ds param-type) []) query-key)))
           {}
           qp's))
 
-(defonce *db (atom {}))
-
-(defn filter-data [params]
-  (let [{:keys [query-filter]} (params-by-param-type query-params)
+(defn params-to-honey-query [qp's params]
+  (let [{:keys [query-filter]} (params-by-param-type qp's)
         target-map (select-keys params query-filter)
         subfilter-keys (keys target-map)]
-    (filter (fn [a]
-              (= target-map (select-keys a subfilter-keys)))
-            (vals @*db))))
+    (println "params are " params)
+    (merge
+      {:select [:*]
+       :from [:entities]
+       :limit (or (:perpage params) 10)
+       :offset (* (or (:perpage params) 10)
+                  (min 0 (dec (or (:pagenumber params) 1))))}
+      (if (empty? target-map)
+        {}
+        {:where (into [:and]
+                      (map (fn [[k v]]
+                             ((if (:row-type (k qp's)) sql-transform-basic sql-transform-rest) [k v]))
+                           target-map))}))))
 
-(defn reset-db []
-  (reset! *db (->> (gen/sample (s/gen :lytek/solar))
-                   (map (fn [a] {(:id a) a}))
-                   (into {}))))
-
+(defn read-entities [qp's params]
+  (into []
+        (map #(hydrate-entity-after-selection query-params %)
+             (jdbc/query db-connection (hsql/format (params-to-honey-query qp's params))))))
 
 (defn api-read [request]
-  (let [{:keys [character-type id owner category] :as params}
-        (:query (:parameters request))]
-    (println "request is " request)
-    {:resp   0
+  (let [{:keys [] :as params} (:query (:parameters request))]
+    {:resp 0
      :params params
-     :data   (filter-data params)
-     ;(str (:query (:parameters request)))
-     :error  ""}))
+     :data (read-entities query-params
+                          (:query (:parameters request)))
+     :error ""}))
 
 (defn api-create [request]
   {:resp 0 :data [] :error ""})
@@ -174,7 +191,7 @@
 (defn start-server []
   (reset! *server
           (yada/listener
-            ["/api/" {"asdf/v1" api-v1-resource}]
+            ["/api/" {"asdf/v1/" api-v1-resource}]
             {:port 3000})))
 
 (defn stop-server []
