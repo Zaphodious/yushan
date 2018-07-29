@@ -7,7 +7,9 @@
             [com.blakwurm.lytek.spec]
             [clojure.java.jdbc :as jdbc]
             [clojure.string :as str]
-            [clojure.core.async :as async])
+            [clojure.core.async :as async]
+            [honeysql.core :as hsql]
+            [honeysql.helpers :as hsql.help])
   (:import (clojure.lang Keyword)))
 
 (def db-connection
@@ -78,6 +80,15 @@
 
 (defn write-entity! [entity]
   (async/go (async/>!! write-to-chan entity)))
+
+(def test-honey-query
+  {:select [:*]
+   :from [:entities]
+   :where [:and  [:like :rest "%:supernal :athletics%"]]})
+
+(defn read-entity [params]
+  (async/go (map #(hydrate-entity-after-selection query-params %)
+                 (jdbc/query db-connection (hsql/format test-honey-query)))))
 
 (defn insert-test-entity []
     (try
