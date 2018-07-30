@@ -1,13 +1,12 @@
 (ns user
-  (:require [clojure.tools.nrepl.server :as nrepl]))
+  (:require [clojure.tools.nrepl.server :as nrepl]
+            [com.blakwurm.yushan.core :as yushan]
+            [clojure.tools.namespace.repl :as namespace.repl]))
 
-(println "user ns loaded")
-
-(defn foo []
-  (println "booyeah!"))
-
-(defn start-nrepl []
-  (nrepl/start-server :port 2539))
-
-(defn -main []
-  (start-nrepl))
+(defn plugin
+  "Load and switch to the 'dev' namespace."
+  []
+  (yushan/start-server)
+  (require 'com.blakwurm.yushan.core)
+  (in-ns 'com.blakwurm.yushan.core)
+  :loaded)
