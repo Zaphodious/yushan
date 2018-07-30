@@ -168,8 +168,12 @@
 (defn api-create [request]
   {:resp 0 :data [] :error ""})
 
+(defonce *update (atom {}))
+
 (defn api-update [request]
-  {:resp 0 :data [] :error ""})
+  (reset! *update request)
+  {:resp 0 :data [(pr-str request)]
+   :error ""})
 
 (defn api-delete [request]
   {:resp 0 :data [] :error ""})
@@ -178,7 +182,7 @@
 (def api-v1-resource
   (yada/resource
     {:produces   "application/json"
-
+     :consumes   "application/json"
      :methods    {:get    #'api-read
                   :put    #'api-update
                   :post   #'api-create
