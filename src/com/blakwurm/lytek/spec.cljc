@@ -34,6 +34,8 @@
    :perception
    :intelligence
    :wits])
+(def attribute-strings
+  (map name attribute-keys))
 
 (def ability-keys
   [:archery
@@ -62,6 +64,8 @@
    :survival
    :thrown
    :war])
+(def ability-strings
+  (map name ability-keys))
 
 (defn not-blank? [a] 
   (not (string/blank? a)))

@@ -9,7 +9,8 @@
             [clojure.string :as str]
             [clojure.core.async :as async]
             [honeysql.core :as hsql]
-            [honeysql.helpers :as hsql.help])
+            [honeysql.helpers :as hsql.help]
+            [spec-coerce.core :as sc])
   (:import (clojure.lang Keyword)))
 
 (def db-connection
@@ -108,8 +109,8 @@
     (catch Exception e
       e)))
 
-(defn insert-some-test-entities! []
-  (async/go (dotimes [n 100000] (insert-test-entity))))
+(defn insert-some-test-entities! [amt]
+  (async/go (dotimes [n amt] (insert-test-entity))))
 
 (defn create-db []
   (try (jdbc/db-do-commands db-connection
@@ -171,8 +172,8 @@
 (defonce *update (atom {}))
 
 (defn api-update [request]
-  (reset! *update request)
-  {:resp 0 :data [(pr-str request)]
+  (reset! *update (hydrate-entity-after-selection query-params (:body request)))
+  {:resp 0 :data [(s/valid? :lytek/entity (hydrate-entity-after-selection query-params (:body request)))]
    :error ""})
 
 (defn api-delete [request]
