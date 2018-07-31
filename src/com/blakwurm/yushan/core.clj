@@ -4,7 +4,7 @@
             [clojure.test.check.generators]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
-            [com.blakwurm.lytek.spec]
+            [com.blakwurm.lytek.spec :as lyspec]
             [clojure.java.jdbc :as jdbc]
             [clojure.string :as str]
             [clojure.core.async :as async]
@@ -37,6 +37,32 @@
    :pagenumber  {:opt? optional :prismatic-type Number :param-type :query-modifier}
    :description {:param-type :row :row-type :text}
    :rest        {:param-type :row :row-type :text}})
+
+(defn map->lytek-map [mappo]
+  (into {}
+        (map
+          (fn [[k v]]
+            {(if (qualified-keyword? k)
+               k
+               (keyword "lytek" (name k)))
+             v})
+          mappo)))
+
+(defn lytek-map->map [lymappo]
+  (into {}
+        (map
+          (fn [[k v]]
+            {(keyword(name k)) v})
+          lymappo)))
+
+(defn coerce-entity [entity]
+  (let [coerse-spec (lyspec/get-applicable-spec-pre-coersion entity)]
+    (-> entity
+        map->lytek-map
+        sc/coerce-structure
+        lytek-map->map)))
+
+
 
 (def test-query
   {:subcategory "dawn"
@@ -172,7 +198,7 @@
 (defonce *update (atom {}))
 
 (defn api-update [request]
-  (reset! *update (hydrate-entity-after-selection query-params (:body request)))
+  (reset! *update (:body request))
   {:resp 0 :data [(s/valid? :lytek/entity (hydrate-entity-after-selection query-params (:body request)))]
    :error ""})
 

@@ -22,7 +22,15 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             [clojure.set :as se]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [spec-coerce.core :as sc]))
+
+(defn named? [a] (or (string? a) (keyword? a) (symbol? a)))
+(defn coerce-to-string [a]
+  (if (named? a)
+    (name a) (str a)))
+(defn coerce-to-keyword [a]
+  (keyword (coerce-to-string a)))
 
 (def attribute-keys
   [:strength
@@ -73,33 +81,40 @@
 (s/def :lytek/id
   (s/and string?
          not-blank?))
+(sc/def :lytek/id coerce-to-string)
 
 (s/def :lytek/name
   (s/and string?
-         not-blank?))       
+         not-blank?))
+(sc/def :lytek/name coerce-to-string)
 
 (s/def :lytek/title
   string?)
+(sc/def :lytek/title coerce-to-string)
 
 (s/def :lytek/background
-  string?)  
+  string?)
+(sc/def :lytek/background coerce-to-string)
 
 (s/def :lytek/description
   string?)
+(sc/def :lytek/description coerce-to-string)
 
 (s/def :lytek/owner
   string?)
+(sc/def :lytek/owner coerce-to-string)
 
 (s/def :lytek/category
   #{:character
     :rulebook})
+(sc/def :lytek/category coerce-to-keyword)
 
 (def solar-castes
   #{:dawn
     :night
     :eclipse
     :twilight
-    :zenith})  
+    :zenith})
 
 (def terrestrial-aspects
   #{:wood
@@ -110,7 +125,8 @@
 
 (s/def :lytek/subcategory
   (se/union solar-castes
-            terrestrial-aspects))      
+            terrestrial-aspects))
+(sc/def :lytek/subcategory coerce-to-keyword)
 
 (s/def :lytek/rank  
   (s/int-in 0 6))
@@ -120,11 +136,13 @@
 
 (s/def :lytek/attribute
   (set attribute-keys))
+(sc/def :lytek/attribute coerce-to-keyword)
 (s/def :lytek/attributes
   (s/map-of :lytek/attribute (s/int-in 1 6)))
 
 (s/def :lytek/ability
   (set ability-keys))
+(sc/def :lytek/ability coerce-to-keyword)
 (s/def :lytek/abilities
   (s/and
     (s/map-of :lytek/ability :lytek/rank)
@@ -133,12 +151,18 @@
 (s/def :lytek/additional-ability
   (s/tuple :lytek/ability
            :lytek/rank
-           :lytek/description))                    
+           :lytek/description))
+(sc/def :lytek/additional-ability (fn [[a r d]]
+                                    [(coerce-to-keyword a)
+                                     (sc/coerce :lytek/rank r)
+                                     (sc/coerce :lytek/description d)]))
 (s/def :lytek/additional-abilities
-  (s/coll-of :lytek/additional-ability))  
+  (s/coll-of :lytek/additional-ability))
+
 
 (s/def :lytek/supernal
   :lytek/ability)
+(sc/def :lytek/ability coerce-to-keyword)
 (s/def :lytek/favored-abilities
   (s/coll-of :lytek/ability :count 10 :into #{}))
 
@@ -153,6 +177,7 @@
 
 (s/def :lytek/anima
   string?)
+(sc/def :lytek/anima coerce-to-string)
 
 (s/def :lytek/health-boxes
   (s/int-in 0 51))
@@ -192,16 +217,24 @@
 
 (s/def :lytek/intimacy-type
   #{:principle :tie})
+(sc/def :lytek/intimacy-type coerce-to-keyword)
 (s/def :lytek/intimacy-severity
   #{:defining :major :minor})
+(sc/def :lytek/intimacy-severity coerce-to-keyword)
 (s/def :lytek/intimacy-feeling
   string?)
+(sc/def :lytek/intimacy-feeling coerce-to-string)
 (s/def :lytek/intimacy
   (s/tuple :lytek/intimacy-severity
            :lytek/intimacy-type
            :lytek/intimacy-feeling
            (s/and :lytek/description
                   not-blank?)))
+(sc/def :lytek/intimacy (fn [[s t f d]]
+                          [(coerce-to-keyword s)
+                           (coerce-to-keyword t)
+                           (coerce-to-string f)
+                           (coerce-to-string d)]))
 (s/def :lytek/intimacies
   (s/coll-of :lytek/intimacy :into [] :min-count 4))  
 
@@ -251,3 +284,11 @@
                              :lytek/supernal
                              :lytek/favored-abilities]))
     #(contains? solar-castes (:subcategory %))))
+
+(defn get-applicable-spec-pre-coersion [{:as entity :keys [category subcategory]}]
+  (cond
+    (= category :character) (cond
+                              (contains? solar-castes subcategory) :lytek/solar
+                              (contains? terrestrial-aspects subcategory) :lytek/terrestrial
+                              :else :lytek/character)
+    :else :lytek/entity))
