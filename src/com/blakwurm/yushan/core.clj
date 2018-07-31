@@ -52,7 +52,7 @@
   (into {}
         (map
           (fn [[k v]]
-            {(keyword(name k)) v})
+            {(keyword (name k)) v})
           lymappo)))
 
 (defn coerce-entity [entity]
@@ -81,7 +81,7 @@
 
 (def test-query
   {:subcategory "dawn"
-   :name "Mubaraka"})
+   :name        "Mubaraka"})
 
 (defn params-to-db-rows [qp's]
   (->> qp's
@@ -146,12 +146,12 @@
 
 (def test-honey-query
   {:select [:*]
-   :limit 10
+   :limit  10
    :offset 10
    :from   [:entities]
    :where  [:and [:like :rest "%:supernal :athletics%"]]})
-            ;[:like :rest "%:martial-arts 3%"]
-            ;[:like :rest "%:wits 3%"]]})
+;[:like :rest "%:martial-arts 3%"]
+;[:like :rest "%:wits 3%"]]})
 
 
 
@@ -194,8 +194,8 @@
     (println "params are " params)
     (merge
       {:select [:*]
-       :from [:entities]
-       :limit (or (:perpage params) 10)
+       :from   [:entities]
+       :limit  (or (:perpage params) 10)
        :offset (* (or (:perpage params) 10)
                   (min 0 (dec (or (:pagenumber params) 1))))}
       (if (empty? target-map)
@@ -212,11 +212,11 @@
 
 (defn api-read [request]
   (let [{:keys [] :as params} (:query (:parameters request))]
-    {:resp 0
+    {:resp   0
      :params params
-     :data (read-entities query-params
-                          (:query (:parameters request)))
-     :error ""}))
+     :data   (read-entities query-params
+                            (:query (:parameters request)))
+     :error  ""}))
 
 (defn api-create [request]
   {:resp 0 :data [] :error ""})
@@ -226,12 +226,14 @@
 (defn api-update [request]
   (reset! *update (:data (:body request)))
   (let [coerced-entities (map coerce-entity (-> request :body :data))
-        {:keys [to-insert to-return]} (group-by-validity coerced-entities)]
-    (println to-return)
+        merged-entities (map (fn [a] (merge (first (read-entities query-params {:id (:id a)})) a)) coerced-entities)
+        {:keys [to-insert to-return]} (group-by-validity merged-entities)]
+    (println (map :id merged-entities))
+    ;(println to-return)
     (into [] (map write-entity! to-insert))
-    {:resp (if (reduce #(= true %1 %2) to-return)
-             0 1)
-     :data to-return
+    {:resp  (if (reduce #(= true %1 %2) to-return)
+              0 1)
+     :data  to-return
      :error ""}))
 
 (defn api-delete [request]
