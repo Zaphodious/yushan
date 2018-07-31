@@ -219,7 +219,10 @@
      :error  ""}))
 
 (defn api-create [request]
-  {:resp 0 :data [] :error ""})
+  (let [{:keys [category subcategory] :as params} (:query (:parameters request))
+        check-id-transducer (map (fn [a] (first (read-entities query-params {:id a}))))]
+
+    {:resp 0 :data [] :error ""}))
 
 (defonce *update (atom {}))
 
