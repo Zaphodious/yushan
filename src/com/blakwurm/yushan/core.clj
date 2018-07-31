@@ -62,7 +62,22 @@
         sc/coerce-structure
         lytek-map->map)))
 
+(defn explain-entity-validity
+  "Passes entity to spec/explain, using lyspec/get-applicable-spec-pre-coersion. Returns 'true' instead of nil"
+  [entity]
+  (or (::s/problems (s/explain-data (lyspec/get-applicable-spec-pre-coersion entity) entity))
+      true))
 
+(defn is-entity-valid?
+  "Passes entity to spec/valid?, using lyspec/get-applicable-spec-per-coersion"
+  [entity]
+  (s/valid? (lyspec/get-applicable-spec-pre-coersion entity) entity))
+
+(defn group-by-validity
+  "returns a map, with :to-insert holding entities fit for insertion, and :to-return holding either 'true' or a spec/explain result"
+  [entity-seq]
+  {:to-insert (filter is-entity-valid? entity-seq)
+   :to-return (map explain-entity-validity entity-seq)})
 
 (def test-query
   {:subcategory "dawn"
@@ -105,18 +120,29 @@
   (try
     (jdbc/insert! db-connection :entities prepped-entity)
     (catch Exception e
-      (jdbc/update! db-connection :entities prepped-entity ["id = ?" (:id prepped-entity)]))))
+      (try
+        (jdbc/update! db-connection :entities prepped-entity ["id = ?" (:id prepped-entity)])
+        (catch Exception e
+          (println "error in put-in-db")
+          (println e))))))
 
 (def write-to-chan (async/chan 10000 (map #(prep-entity-for-insertion query-params %))))
 
 (defn kickoff-writer-go-block [transduced-chan]
   (async/go-loop []
-    (put-in-db (async/<!! transduced-chan))
+    (try
+      (put-in-db (async/<!! transduced-chan))
+      (catch Exception e
+        (println "error in writer go block")
+        (println e)))
     (recur)))
 (kickoff-writer-go-block write-to-chan)
 
 (defn write-entity! [entity]
-  (async/go (async/>!! write-to-chan entity)))
+  (try
+    (async/go (async/>!! write-to-chan entity))
+    (catch Exception e
+      (println "error in write-entity function"))))
 
 (def test-honey-query
   {:select [:*]
@@ -198,9 +224,15 @@
 (defonce *update (atom {}))
 
 (defn api-update [request]
-  (reset! *update (:body request))
-  {:resp 0 :data [(s/valid? :lytek/entity (hydrate-entity-after-selection query-params (:body request)))]
-   :error ""})
+  (reset! *update (:data (:body request)))
+  (let [coerced-entities (map coerce-entity (-> request :body :data))
+        {:keys [to-insert to-return]} (group-by-validity coerced-entities)]
+    (println to-return)
+    (into [] (map write-entity! to-insert))
+    {:resp (if (reduce #(= true %1 %2) to-return)
+             0 1)
+     :data to-return
+     :error ""}))
 
 (defn api-delete [request]
   {:resp 0 :data [] :error ""})
