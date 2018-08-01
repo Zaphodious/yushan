@@ -1,0 +1,51 @@
+{:description "",
+ :category :character,
+ :health-levels [1 2 2 1],
+ :essence-peripheral 15,
+ :limit-trigger "",
+ :additional-abilities [[:craft 0 ""][:martial-arts 0 ""]],
+ :supernal :awareness,
+ :rulebooks [""],
+ :essence-rating 1,
+ :anima "",
+ :name "",
+ :willpower-maximum 2,
+ :subcategory :eclipse,
+ :damage-aggravated 0,
+ :abilities {:thrown 4, :melee 1, :dodge 1, :larceny 2, :lore 1, :performance 1},
+ :committed-personal 1,
+ :charms ["Rct" "1T" "Ri" "49" "l6" "0Dm" "vwk" "6E9I"],
+ :id "O",
+ :willpower-temporary 1,
+ :damage-bashing 0,
+ :limit-accrued 0,
+ :intimacies [[:defining :principle "1Z8" "nGv"]
+              [:major :principle "" "9V"]
+              [:major :tie "4II" "gk4"]
+              [:minor :principle "9ib" "A63"]
+              [:minor :principle "e" "j"]
+              [:minor :principle "Uz" "3B65"]
+              [:major :principle "2P2" "L4"]
+              [:minor :tie "18V" "n"]
+              [:minor :tie "X58" "7o"]
+              [:defining :tie "59" "w6"]
+              [:defining :tie "FTw" "45ZA"]
+              [:major :tie "3DR" "jP"]
+              [:major :principle "xhp" "YMF"]
+              [:defining :tie "h9R" "85"]
+              [:defining :tie "MqY" "H501"]],
+ :favored-abilities #{:investigation
+                      :dodge
+                      :presence
+                      :socialize
+                      :martial-arts
+                      :ride
+                      :integrity
+                      :sail
+                      :medicine
+                      :stealth},
+ :attributes {:wits 2, :manipulation 2, :appearance 3, :dexterity 3},
+ :owner "g",
+ :committed-peripheral 1,
+ :essence-personal 1,
+ :damage-lethal 0}

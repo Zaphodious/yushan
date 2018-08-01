@@ -220,9 +220,13 @@
 
 (defn api-create [request]
   (let [{:keys [category subcategory] :as params} (:query (:parameters request))
-        check-id-transducer (map (fn [a] (first (read-entities query-params {:id a}))))]
-
-    {:resp 0 :data [] :error ""}))
+        possible-ids (repeatedly (fn [] (gen/generate (s/gen :lytek/id))))
+        check-possible-ids #(map (fn [a] (when (first (read-entities query-params {:id a}))
+                                           a))
+                              %)
+        filter-true-ids #(filter identity %)
+        id-to-use (-> possible-ids check-possible-ids filter-true-ids first)]
+    {:resp 0 :data [id-to-use] :error ""}))
 
 (defonce *update (atom {}))
 
