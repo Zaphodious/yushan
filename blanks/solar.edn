@@ -1,39 +1,52 @@
 {:description "",
  :category :character,
  :health-levels [1 2 2 1],
- :essence-peripheral 15,
+ :essence-peripheral 30,
  :limit-trigger "",
  :additional-abilities [[:craft 0 ""][:martial-arts 0 ""]],
  :supernal :awareness,
- :rulebooks [""],
+ :rulebooks ["core"],
  :essence-rating 1,
  :anima "",
- :name "",
- :willpower-maximum 2,
+ :name "Blank Solar",
+ :willpower-maximum 10,
  :subcategory :eclipse,
  :damage-aggravated 0,
- :abilities {:thrown 4, :melee 1, :dodge 1, :larceny 2, :lore 1, :performance 1},
+ :abilities {:lore 0,
+             :melee 0,
+             :investigation 0,
+             :dodge 0,
+             :presence 0,
+             :performance 0,
+             :linguistics 0,
+             :war 0,
+             :socialize 0,
+             :survival 0,
+             :bureaucracy 0,
+             :occult 0,
+             :resistance 0,
+             :brawl 0,
+             :ride 0,
+             :athletics 0,
+             :thrown 0,
+             :archery 0,
+             :integrity 0,
+             :awareness 0,
+             :larceny 0,
+             :sail 0,
+             :medicine 0,
+             :stealth 0},
  :committed-personal 1,
- :charms ["Rct" "1T" "Ri" "49" "l6" "0Dm" "vwk" "6E9I"],
- :id "O",
+ :charms [],
+ :id "0",
  :willpower-temporary 1,
  :damage-bashing 0,
  :limit-accrued 0,
- :intimacies [[:defining :principle "1Z8" "nGv"]
-              [:major :principle "" "9V"]
-              [:major :tie "4II" "gk4"]
-              [:minor :principle "9ib" "A63"]
-              [:minor :principle "e" "j"]
-              [:minor :principle "Uz" "3B65"]
-              [:major :principle "2P2" "L4"]
-              [:minor :tie "18V" "n"]
-              [:minor :tie "X58" "7o"]
-              [:defining :tie "59" "w6"]
-              [:defining :tie "FTw" "45ZA"]
-              [:major :tie "3DR" "jP"]
-              [:major :principle "xhp" "YMF"]
-              [:defining :tie "h9R" "85"]
-              [:defining :tie "MqY" "H501"]],
+ :intimacies [[:defining :principle "" "a"]
+              [:major :principle "" "a"]
+              [:major :tie "" "a"]
+              [:minor :principle "" "a"]
+              [:minor :principle "" "a"]],
  :favored-abilities #{:investigation
                       :dodge
                       :presence
@@ -44,8 +57,16 @@
                       :sail
                       :medicine
                       :stealth},
- :attributes {:wits 2, :manipulation 2, :appearance 3, :dexterity 3},
- :owner "g",
- :committed-peripheral 1,
- :essence-personal 1,
+ :attributes {:charisma 1,
+              :perception 1,
+              :intelligence 1,
+              :stamina 1,
+              :strength 1,
+              :dexterity 1,
+              :wits 1,
+              :appearance 1,
+              :manipulation 1},
+ :owner "",
+ :committed-peripheral 0,
+ :essence-personal 15,
  :damage-lethal 0}

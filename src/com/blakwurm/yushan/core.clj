@@ -131,7 +131,8 @@
 (defn kickoff-writer-go-block [transduced-chan]
   (async/go-loop []
     (try
-      (put-in-db (async/<!! transduced-chan))
+      (let [entity (async/<!! transduced-chan)]
+        (put-in-db entity))
       (catch Exception e
         (println "error in writer go block")
         (println e)))
@@ -173,6 +174,8 @@
 (defn drop-entities! []
   (jdbc/db-do-commands db-connection (jdbc/drop-table-ddl :entities)))
 
+(defn get-blank-by-category [category]
+  (s/conform (keyword "lytek" (name category)) (read-string (slurp (str "blanks/"(name category)".edn")))))
 
 (defn params-to-prismatic [qp's]
   (into {}
@@ -221,12 +224,17 @@
 (defn api-create [request]
   (let [{:keys [category subcategory] :as params} (:query (:parameters request))
         possible-ids (repeatedly (fn [] (gen/generate (s/gen :lytek/id))))
-        check-possible-ids #(map (fn [a] (when (first (read-entities query-params {:id a}))
+        check-possible-ids #(map (fn [a] (when-not (first (read-entities query-params {:id a}))
                                            a))
                               %)
         filter-true-ids #(filter identity %)
-        id-to-use (-> possible-ids check-possible-ids filter-true-ids first)]
-    {:resp 0 :data [id-to-use] :error ""}))
+        id-to-use (-> possible-ids check-possible-ids filter-true-ids first)
+        blank-entity (assoc (get-blank-by-category (or category "solar"))
+                           :id id-to-use)]
+    (println "making entity-write " id-to-use)
+    (println "Something in this already? " (not (empty? (read-entities query-params {:id id-to-use}))))
+    (write-entity! blank-entity)
+    {:resp 0 :data [blank-entity] :error ""}))
 
 (defonce *update (atom {}))
 
