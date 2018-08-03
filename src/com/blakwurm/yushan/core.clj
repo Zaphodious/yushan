@@ -65,8 +65,9 @@
 (defn explain-entity-validity
   "Passes entity to spec/explain, using lyspec/get-applicable-spec-pre-coersion. Returns 'true' instead of nil"
   [entity]
-  (or (::s/problems (s/explain-data (lyspec/get-applicable-spec-pre-coersion entity) entity))
-      true))
+  #_(or (::s/problems (s/explain-data (lyspec/get-applicable-spec-pre-coersion entity) entity))
+        true)
+  (nil? (s/explain-data (lyspec/get-applicable-spec-pre-coersion entity) entity)))
 
 (defn is-entity-valid?
   "Passes entity to spec/valid?, using lyspec/get-applicable-spec-per-coersion"
@@ -116,34 +117,52 @@
                (dissoc entity :rest))
          (read-string (or (:rest entity) "{}"))))
 
-(defn put-in-db [prepped-entity]
-  (try
-    (jdbc/insert! db-connection :entities prepped-entity)
-    (catch Exception e
-      (try
-        (jdbc/update! db-connection :entities prepped-entity ["id = ?" (:id prepped-entity)])
-        (catch Exception e
-          (println "error in put-in-db")
-          (println e))))))
+(defn put-in-db [{:as request-map :keys [entity-to-write return-chan write-type]}]
+  (async/go
+    (let [sanitize-return (fn [a] (if a true false))
+          input-result (try (case write-type
+                               :insert (jdbc/insert! db-connection :entities (prep-entity-for-insertion query-params entity-to-write))
+                               :update (jdbc/update! db-connection :entities (prep-entity-for-insertion query-params entity-to-write)
+                                                     ["id = ?" (:id entity-to-write)]))
+                            (catch Exception e
+                              false))]
+      (async/>! return-chan (sanitize-return input-result)))))
 
-(def write-to-chan (async/chan 10000 (map #(prep-entity-for-insertion query-params %))))
+(def write-to-chan (async/chan 10000)) ;(map #(prep-entity-for-insertion query-params %))))
 
-(defn kickoff-writer-go-block [transduced-chan]
+(defn kickoff-writer-go-block [chan]
   (async/go-loop []
     (try
-      (let [entity (async/<!! transduced-chan)]
-        (put-in-db entity))
+      (let [{:as request-map
+             :keys [entity-to-write return-chan write-type]}
+            (async/<!! chan)]
+        (put-in-db request-map))
       (catch Exception e
         (println "error in writer go block")
         (println e)))
     (recur)))
 (kickoff-writer-go-block write-to-chan)
 
-(defn write-entity! [entity]
-  (try
-    (async/go (async/>!! write-to-chan entity))
-    (catch Exception e
-      (println "error in write-entity function"))))
+(def write-request-example
+  {:write-type :insert
+   :return-chan (async/chan)
+   :entity-to-write (gen/generate (s/gen :lytek/solar))})
+
+(defn write-entity!
+  ([entity] (write-entity! entity :insert))
+
+  ([entity write-type]
+   (let [ret-chan (async/chan 3)]
+     (try
+       (async/go (async/>! write-to-chan {:write-type write-type :entity-to-write entity :return-chan ret-chan}))
+       (catch Exception e
+         (println "error in write-entity function")))
+     ret-chan)))
+
+(defn insert-entity! [entity]
+  (write-entity! entity :insert))
+(defn update-entity [entity]
+  (write-entity! :update))
 
 (def test-honey-query
   {:select [:*]
@@ -245,7 +264,7 @@
         {:keys [to-insert to-return]} (group-by-validity merged-entities)]
     (println (map :id merged-entities))
     ;(println to-return)
-    (into [] (map write-entity! to-insert))
+    (into [] (map update-entity to-insert))
     {:resp  (if (reduce #(= true %1 %2) to-return)
               0 1)
      :data  to-return
