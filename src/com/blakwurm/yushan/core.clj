@@ -121,19 +121,19 @@
   (async/go
     (let [sanitize-return (fn [a] (if a true false))
           input-result (try (case write-type
-                               :insert (jdbc/insert! db-connection :entities (prep-entity-for-insertion query-params entity-to-write))
-                               :update (jdbc/update! db-connection :entities (prep-entity-for-insertion query-params entity-to-write)
-                                                     ["id = ?" (:id entity-to-write)]))
+                              :insert (jdbc/insert! db-connection :entities (prep-entity-for-insertion query-params entity-to-write))
+                              :update (jdbc/update! db-connection :entities (prep-entity-for-insertion query-params entity-to-write)
+                                                    ["id = ?" (:id entity-to-write)]))
                             (catch Exception e
                               false))]
       (async/>! return-chan (sanitize-return input-result)))))
 
-(def write-to-chan (async/chan 10000)) ;(map #(prep-entity-for-insertion query-params %))))
+(def write-to-chan (async/chan 10000))                      ;(map #(prep-entity-for-insertion query-params %))))
 
 (defn kickoff-writer-go-block [chan]
   (async/go-loop []
     (try
-      (let [{:as request-map
+      (let [{:as   request-map
              :keys [entity-to-write return-chan write-type]}
             (async/<!! chan)]
         (put-in-db request-map))
@@ -144,8 +144,8 @@
 (kickoff-writer-go-block write-to-chan)
 
 (def write-request-example
-  {:write-type :insert
-   :return-chan (async/chan)
+  {:write-type      :insert
+   :return-chan     (async/chan)
    :entity-to-write (gen/generate (s/gen :lytek/solar))})
 
 (defn write-entity!
@@ -194,7 +194,7 @@
   (jdbc/db-do-commands db-connection (jdbc/drop-table-ddl :entities)))
 
 (defn get-blank-by-category [category]
-  (s/conform (keyword "lytek" (name category)) (read-string (slurp (str "blanks/"(name category)".edn")))))
+  (s/conform (keyword "lytek" (name category)) (read-string (slurp (str "blanks/" (name category) ".edn")))))
 
 (defn params-to-prismatic [qp's]
   (into {}
@@ -241,19 +241,18 @@
      :error  ""}))
 
 (defn api-create [request]
-  (let [{:keys [category subcategory] :as params} (:query (:parameters request))
-        possible-ids (repeatedly (fn [] (gen/generate (s/gen :lytek/id))))
-        check-possible-ids #(map (fn [a] (when-not (first (read-entities query-params {:id a}))
-                                           a))
-                              %)
-        filter-true-ids #(filter identity %)
-        id-to-use (-> possible-ids check-possible-ids filter-true-ids first)
-        blank-entity (assoc (get-blank-by-category (or category "solar"))
-                           :id id-to-use)]
-    (println "making entity-write " id-to-use)
-    (println "Something in this already? " (not (empty? (read-entities query-params {:id id-to-use}))))
-    (write-entity! blank-entity)
-    {:resp 0 :data [blank-entity] :error ""}))
+  (let [template (get-blank-by-category "solar")
+        {:keys [category subcategory] :as params} (:query (:parameters request))
+        make-possible-ids (repeatedly (fn [] (gen/generate (s/gen :lytek/id))))
+        try-insert #(map (fn [a] [a (insert-entity! (assoc template :id a))]) %)
+        get-insert-result #(map (fn [[a ch]] (when (async/<!! ch) a)) %)
+        get-only-successes #(filter identity %)
+        used-id (-> make-possible-ids try-insert get-insert-result get-only-successes first)
+        new-entity (first (read-entities query-params {:id used-id}))]
+    {:resp 0 :data [new-entity] :error ""}))
+
+
+
 
 (defonce *update (atom {}))
 
