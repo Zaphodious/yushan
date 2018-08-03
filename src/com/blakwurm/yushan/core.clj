@@ -117,13 +117,16 @@
                (dissoc entity :rest))
          (read-string (or (:rest entity) "{}"))))
 
+(declare read-entities)
+
 (defn put-in-db [{:as request-map :keys [entity-to-write return-chan write-type]}]
   (async/go
     (let [sanitize-return (fn [a] (if a true false))
           input-result (try (case write-type
                               :insert (jdbc/insert! db-connection :entities (prep-entity-for-insertion query-params entity-to-write))
-                              :update (jdbc/update! db-connection :entities (prep-entity-for-insertion query-params entity-to-write)
-                                                    ["id = ?" (:id entity-to-write)]))
+                              :update (when-not (empty? (read-entities query-params {:id (:id entity-to-write)}))
+                                        (jdbc/update! db-connection :entities (prep-entity-for-insertion query-params entity-to-write)
+                                                      ["id = ?" (:id entity-to-write)])))
                             (catch Exception e
                               false))]
       (async/>! return-chan (sanitize-return input-result)))))
