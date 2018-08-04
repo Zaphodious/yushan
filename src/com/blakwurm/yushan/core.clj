@@ -292,7 +292,8 @@
 (defn start-server []
   (reset! *server
           (yada/listener
-            ["/api/" {"asdf/v1/" api-v1-resource}]
+            ["/api/" {"asdf/v1/" api-v1-resource}
+                     {"asdf/v1"  api-v1-resource}]
             {:port 3000})))
 
 (defn stop-server []
