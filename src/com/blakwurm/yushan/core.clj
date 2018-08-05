@@ -130,7 +130,8 @@
                               :insert (jdbc/insert! db-connection :entities (prep-entity-for-insertion query-params entity-to-write))
                               :update (when-not (empty? (read-entities query-params {:id (:id entity-to-write)}))
                                         (jdbc/update! db-connection :entities (prep-entity-for-insertion query-params entity-to-write)
-                                                      ["id = ?" (:id entity-to-write)])))
+                                                      ["id = ?" (:id entity-to-write)]))
+                              :delete (jdbc/delete! db-connection :entities ["id = ?" (:id entity-to-write)]))
                             (catch Exception e
                               false))]
       (async/>! return-chan (sanitize-return input-result)))))
@@ -167,8 +168,10 @@
 
 (defn insert-entity! [entity]
   (write-entity! entity :insert))
-(defn update-entity [entity]
-  (write-entity! :update))
+(defn update-entity! [entity]
+  (write-entity! entity :update))
+(defn delete-entity! [entity]
+  (write-entity! entity :delete))
 
 (def test-honey-query
   {:select [:*]
@@ -269,14 +272,23 @@
         {:keys [to-insert to-return]} (group-by-validity merged-entities)]
     (println (map :id merged-entities))
     ;(println to-return)
-    (into [] (map update-entity to-insert))
+    (into [] (map update-entity! to-insert))
     {:resp  (if (reduce #(= true %1 %2) to-return)
               0 1)
      :data  to-return
      :error ""}))
 
 (defn api-delete [request]
-  {:resp 0 :data [] :error ""})
+  (println "deleting " (map :id (-> request :body :data)))
+  (let [entities-to-delete (-> request :body :data)
+        prn1 (println "alive after getting entities")
+        deletion-results (map delete-entity! entities-to-delete)
+        prn2 (println "alive after deleting " deletion-results)
+        resolved-deletion-results (map async/<!! deletion-results)
+        prn3 (println "probably not alive anymore")]
+
+    {:resp 0 :data resolved-deletion-results
+     :error ""}))
 
 
 (def api-v1-resource
