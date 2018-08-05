@@ -18,12 +18,13 @@
         s/cat should not be used.
       + Example- s/tuple conforms to a vector, which is valid according to s/tuple. Therefore,
         s/tuple is acceptable.
-    "  
+    "
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             [clojure.set :as se]
             [clojure.string :as string]
-            [spec-coerce.core :as sc]))
+            [spec-coerce.core :as sc]
+            [clojure.spec.alpha :as s]))
 
 (defn named? [a] (or (string? a) (keyword? a) (symbol? a)))
 (defn coerce-to-string [a]
@@ -31,6 +32,11 @@
     (name a) (str a)))
 (defn coerce-to-keyword [a]
   (keyword (coerce-to-string a)))
+(defn coerce-to-int [a]
+  (try
+    (Integer/parseInt (coerce-to-string a))
+    (catch Exception e
+      0)))
 
 (def attribute-keys
   [:strength
@@ -88,6 +94,9 @@
          not-blank?))
 (sc/def :lytek/name coerce-to-string)
 
+(sc/def :lytek/img
+  string?)
+
 (s/def :lytek/title
   string?)
 (sc/def :lytek/title coerce-to-string)
@@ -130,6 +139,8 @@
 
 (s/def :lytek/rank  
   (s/int-in 0 6))
+(sc/def :lytek/rank
+  coerce-to-int)
 
 (s/def :lytek/rulebooks
   (s/coll-of :lytek/name :into [] :distinct true))
@@ -172,7 +183,7 @@
 (s/def :lytek/specialties
   (s/coll-of :lytek/specialty))  
 
-(s/def :lytek/charms
+(s/def :lytek.character/charms
   (s/coll-of :lytek/name :into []))
 
 (s/def :lytek/anima
@@ -238,6 +249,65 @@
 (s/def :lytek/intimacies
   (s/coll-of :lytek/intimacy :into [] :min-count 4))  
 
+(s/def :lytek/charm-type
+  #{:supplemental
+    :reflexive
+    :simple
+    :permanent})
+(sc/def :lytek/charm-type
+  coerce-to-keyword)
+
+(s/def :lytek/duration
+  string?)
+(sc/def :lytek/duration
+  coerce-to-string)
+
+(s/def :lytek/cost
+  string?)
+(sc/def :lytek/cost
+  coerce-to-string)
+
+(s/def :lytek.rulebook.charm/keyword
+  #{:aggravated
+    :bridge
+    :clash
+    :counterattack
+    :decisive-only
+    :dual
+    :mute
+    :pilot
+    :psyche
+    :perilous
+    :salient
+    :stackable
+    :uniform
+    :withering-only
+    :written-only})
+(sc/def :lytek.rulebook.charm/keyword
+  coerce-to-keyword)
+
+(s/def :lytek/charm-keywords
+  (s/coll-of :lytek.rulebook.charm/keyword :into #{}))
+
+(s/def :lytek/page
+  pos-int?)
+(sc/def :lytek/page
+  coerce-to-int)
+
+(s/def :lytek/rulebook-charm
+  (s/keys :req-un [:lytek/name
+                   :lytek/description
+                   :lytek/ability
+                   :lytek/rank
+                   :lytek/essence-rating
+                   :lytek/page
+                   :lytek/charm-type
+                   :lytek/duration
+                   :lytek/cost
+                   :lytek/charm-keywords]))
+
+(s/def :lytek/rulebook-charms
+  (s/coll-of :lytek/rulebook-charm))
 
 (s/def :lytek/entity
   (s/keys :req-un [:lytek/id
@@ -262,7 +332,7 @@
              (s/keys :req-un [:lytek/subcategory
                               :lytek/anima
                               :lytek/rulebooks
-                              :lytek/charms
+                              :lytek.character/charms
                               :lytek/owner]
                      :opt-un [:lytek/background
                               :lytek/title]))
@@ -279,11 +349,17 @@
 (s/def :lytek/solar
   (s/and
     (s/merge :lytek/enlightened
-            (s/keys :req-un [:lytek/limit-trigger
-                             :lytek/limit-accrued
-                             :lytek/supernal
-                             :lytek/favored-abilities]))
+             (s/keys :req-un [:lytek/limit-trigger
+                              :lytek/limit-accrued
+                              :lytek/supernal
+                              :lytek/favored-abilities]))
     #(contains? solar-castes (:subcategory %))))
+
+(s/def :lytek/rulebook
+  (s/and
+    (s/merge :lytek/entity
+             (s/keys :req-un [:lytek/rulebook-charms]))
+    #(= (:category %) :rulebook)))
 
 (defn get-applicable-spec-pre-coersion [{:as entity :keys [category subcategory]}]
   (cond
@@ -291,4 +367,5 @@
                               (contains? solar-castes subcategory) :lytek/solar
                               (contains? terrestrial-aspects subcategory) :lytek/terrestrial
                               :else :lytek/character)
+    (= category :rulebook) :lytek/rulebook
     :else :lytek/entity))
