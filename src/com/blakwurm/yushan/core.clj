@@ -1,5 +1,8 @@
 (ns com.blakwurm.yushan.core
   (:require [yada.yada :as yada]
+            [yada.resources.file-resource :as yada.file]
+            [bidi.bidi :as bidi]
+            [bidi.ring]
             [schema.core :as schema]
             [clojure.test.check.generators]
             [clojure.spec.alpha :as s]
@@ -10,7 +13,8 @@
             [clojure.core.async :as async]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hsql.help]
-            [spec-coerce.core :as sc])
+            [spec-coerce.core :as sc]
+            [clojure.tools.namespace.repl :as namespace.repl])
   (:import (clojure.lang Keyword)))
 
 (def db-connection
@@ -131,20 +135,19 @@
                               false))]
       (async/>! return-chan (sanitize-return input-result)))))
 
-(def write-to-chan (async/chan 10000))                      ;(map #(prep-entity-for-insertion query-params %))))
+(defonce write-to-chan (async/chan 10000))                      ;(map #(prep-entity-for-insertion query-params %))))
 
 (defn kickoff-writer-go-block [chan]
   (async/go-loop []
-    (try
-      (let [{:as   request-map
-             :keys [entity-to-write return-chan write-type]}
-            (async/<!! chan)]
-        (put-in-db request-map))
-      (catch Exception e
-        (println "error in writer go block")
-        (println e)))
-    (recur)))
-(kickoff-writer-go-block write-to-chan)
+    (let [{:as request-map
+           :keys [entity-to-write return-chan write-type]} (async/<!! chan)]
+      (when request-map
+        (try (put-in-db request-map)
+          (catch Exception e
+            (println "error in writer go block")
+            (println e)))
+        (recur)))))
+(defonce writer-go (kickoff-writer-go-block write-to-chan))
 
 (def write-request-example
   {:write-type      :insert
@@ -292,14 +295,29 @@
 (defn start-server []
   (reset! *server
           (yada/listener
-            ["/api/" {"asdf/v1/" api-v1-resource}
-                     {"asdf/v1"  api-v1-resource}]
+            ["/"
+             [["api/" {"asdf/v1/" api-v1-resource
+                        "asdf/v1"  api-v1-resource}]
+              ;["css/" (yada/yada (clojure.java.io/file "/public/css/"))]
+              ["" (yada/yada (clojure.java.io/file "public/index.html"))]
+              ["css/" (yada/yada (clojure.java.io/file "public/css"))]
+              ["js/" (yada/yada (clojure.java.io/file "public/js"))]
+              ["img/" (yada/yada (clojure.java.io/file "public/img"))]]]
             {:port 3000})))
 
+(println "Prove it")
+
 (defn stop-server []
-  ((:close @*server)))
+  (when-let [close-fn (:close @*server)]
+    (close-fn)))
 
 (defn restart-server []
   (do
     (stop-server)
     (start-server)))
+
+(defn reincarnate! []
+  (async/close! write-to-chan)
+  (stop-server)
+  (namespace.repl/refresh-all)
+  (com.blakwurm.yushan.core/start-server))
