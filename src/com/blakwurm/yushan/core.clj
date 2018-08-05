@@ -281,12 +281,8 @@
 (defn api-delete [request]
   (println "deleting " (map :id (-> request :body :data)))
   (let [entities-to-delete (-> request :body :data)
-        prn1 (println "alive after getting entities")
         deletion-results (map delete-entity! entities-to-delete)
-        prn2 (println "alive after deleting " deletion-results)
-        resolved-deletion-results (map async/<!! deletion-results)
-        prn3 (println "probably not alive anymore")]
-
+        resolved-deletion-results (map async/<!! deletion-results)]
     {:resp 0 :data resolved-deletion-results
      :error ""}))
 
