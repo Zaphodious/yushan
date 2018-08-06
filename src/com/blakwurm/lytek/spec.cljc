@@ -37,6 +37,14 @@
     (Integer/parseInt (coerce-to-string a))
     (catch Exception e
       0)))
+(def ways-of-depicting-true
+  (let [true-strings ["true" "1" "yes" "t" "y"]
+        true-keys (map coerce-to-keyword true-strings)
+        true-numerically [1]]
+      (-> true-strings (into true-keys) (into true-numerically))))
+(defn coerce-to-boolean [a]
+  (if (first (filter #(= % a) ways-of-depicting-true))
+      true false))
 
 (def attribute-keys
   [:strength
@@ -249,6 +257,12 @@
 (s/def :lytek/intimacies
   (s/coll-of :lytek/intimacy :into [] :min-count 4))  
 
+(s/def :lytek/merit
+  (s/tuple :lytek/name :lytek/rank :lytek/description))
+
+(s/def :lytek/merits
+  (s/coll-of :lytek/merit :into []))
+
 (s/def :lytek/charm-type
   #{:supplemental
     :reflexive
@@ -309,12 +323,44 @@
 (s/def :lytek/rulebook-charms
   (s/coll-of :lytek/rulebook-charm))
 
+(s/def :lytek/repurchasable
+  boolean?)
+(sc/def :lytek/repurchasable
+  coerce-to-boolean)
+
+(s/def :lytek/merit-type
+  #{:innate
+    :purchased
+    :story})
+(sc/def :lytek/merit-type
+  coerce-to-keyword)
+
+(s/def :lytek/available-ranks
+  (s/coll-of (s/int-in 0 6) :into #{} :max-count 6 :min-count 1))
+(sc/def :lytek/available-ranks
+  (fn [a] (into #{} (map coerce-to-int a))))
+
+(s/def :lytek/grants-merits
+  (s/coll-of :lytek/name :into []))
+
+(s/def :lytek/rulebook-merit
+  (s/keys :req-un [:lytek/name
+                   :lytek/description
+                   :lytek/page
+                   :lytek/grants-merits
+                   :lytek/repurchasable
+                   :lytek/merit-type
+                   :lytek/available-ranks]))
+
+(s/def :lytek/rulebook-merits
+  (s/coll-of :lytek/rulebook-merit :into []))
+
 (s/def :lytek/entity
-  (s/keys :req-un [:lytek/id
-                   :lytek/category
-                   :lytek/subcategory
-                   :lytek/name
-                   :lytek/description]))
+    (s/keys :req-un [:lytek/id
+                     :lytek/category
+                     :lytek/subcategory
+                     :lytek/name
+                     :lytek/description]))
 
 (s/def :lytek/combatant
   (s/merge :lytek/entity
@@ -333,7 +379,8 @@
                               :lytek/anima
                               :lytek/rulebooks
                               :lytek.character/charms
-                              :lytek/owner]
+                              :lytek/owner
+                              :lytek/merits]
                      :opt-un [:lytek/background
                               :lytek/title]))
     #(= (:category %) :character)))
@@ -358,7 +405,8 @@
 (s/def :lytek/rulebook
   (s/and
     (s/merge :lytek/entity
-             (s/keys :req-un [:lytek/rulebook-charms]))
+             (s/keys :req-un [:lytek/rulebook-charms
+                              :lytek/rulebook-merits]))
     #(= (:category %) :rulebook)))
 
 (defn get-applicable-spec-pre-coersion [{:as entity :keys [category subcategory]}]
