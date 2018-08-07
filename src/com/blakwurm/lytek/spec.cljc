@@ -24,6 +24,7 @@
             [clojure.set :as se]
             [clojure.string :as string]
             [spec-coerce.core :as sc]
+            [clojure.spec.alpha :as s]
             [clojure.spec.alpha :as s]))
 
 (defn named? [a] (or (string? a) (keyword? a) (symbol? a)))
@@ -123,8 +124,8 @@
 
 (s/def :lytek/category
   #{:character
-    :rulebook
-    :castable})
+    :rulebook})
+    ;:castable})
 (sc/def :lytek/category coerce-to-keyword)
 
 (def solar-castes
@@ -133,6 +134,14 @@
     :eclipse
     :twilight
     :zenith})
+
+(s/def :lytek.character.solar/caste
+  solar-castes)
+
+(s/def :lytek/caste
+  keyword?)
+(sc/def :lytek/caste
+  coerce-to-keyword)
 
 (def terrestrial-aspects
   #{:wood
@@ -147,11 +156,19 @@
     :spell
     :martial-arts})
 
+(def character-types
+  #{:solar
+    :terrestrial})
+
+(def nil-type
+  #{:none})
+(def any-type
+  #{:any})
+
 (s/def :lytek/subcategory
-  (se/union
-    castable-types
-    solar-castes
-    terrestrial-aspects))
+  (se/union character-types
+            nil-type
+            any-type))
 (sc/def :lytek/subcategory coerce-to-keyword)
 
 (s/def :lytek/rank  
@@ -401,17 +418,22 @@
 (s/def :lytek/rulebook-merits
   (s/coll-of :lytek/rulebook-merit :into []))
 
+(s/def :lytek/named
+  (s/keys :req-un [:lytek/name
+                   :lytek/description]))
+
+(defmulti entity-category :category)
+
 (s/def :lytek/entity
-    (s/keys :req-un [:lytek/id
-                     :lytek/category
-                     :lytek/subcategory
-                     :lytek/name
-                     :lytek/description]))
+  (s/merge (s/keys :req-un [:lytek/id])
+           :lytek/named
+           (s/multi-spec entity-category :category)))
+
 
 
 (s/def :lytek/combatant
-  (s/merge :lytek/entity
-           :lytek/healthy
+  (s/merge :lytek/healthy
+           :lytek/named
            (s/keys :req-un [:lytek/attributes
                             :lytek/abilities
                             :lytek/additional-abilities
@@ -419,42 +441,67 @@
                             :lytek/willpower-temporary
                             :lytek/intimacies])))
 
-(s/def :lytek/character
-  (s/and
-    (s/merge :lytek/combatant
-             (s/keys :req-un [:lytek/subcategory
-                              :lytek/anima
-                              :lytek/rulebooks
-                              :lytek.character/charms
-                              :lytek/owner
-                              :lytek/merits]
-                     :opt-un [:lytek/background
-                              :lytek/title]))
-    #(= (:category %) :character)))
+(defmulti character-type :subcategory)
+(defmethod entity-category :character [_]
+  (s/merge :lytek/combatant
+           (s/keys :req-un [:lytek/rulebooks
+                            :lytek/owner])
+           (s/multi-spec character-type :subcategory)))
 
+
+
+;(s/def :lytek/character
+;  (s/and
+;    (s/merge :lytek/combatant
+;             (s/keys :req-un [:lytek/subcategory
+;                              :lytek/anima
+;                              :lytek/rulebooks
+;                              :lytek.character/charms
+;                              :lytek/owner
+;                              :lytek/merits]
+;                     :opt-un [:lytek/background
+;                              :lytek/title]))))
+;
 (s/def :lytek/enlightened
-  (s/merge :lytek/character
-           (s/keys :req-un [:lytek/essence-rating
-                            :lytek/essence-personal
-                            :lytek/essence-peripheral
-                            :lytek/committed-personal
-                            :lytek/committed-peripheral])))
+  (s/keys :req-un [:lytek/essence-rating
+                   :lytek/essence-personal
+                   :lytek/essence-peripheral
+                   :lytek/committed-personal
+                   :lytek/committed-peripheral]))
+
+(defmethod character-type :solar [_]
+  (s/merge :lytek/enlightened
+           :lytek/combatant
+    (s/keys :req-un [:lytek/anima
+                     :lytek.character.solar/caste
+                     :lytek/supernal
+                     :lytek/favored-abilities
+                     :lytek/limit-accrued
+                     :lytek/limit-trigger
+                     :lytek/merits])))
 
 (s/def :lytek/solar
-  (s/and
-    (s/merge :lytek/enlightened
-             (s/keys :req-un [:lytek/limit-trigger
-                              :lytek/limit-accrued
-                              :lytek/supernal
-                              :lytek/favored-abilities]))
-    #(contains? solar-castes (:subcategory %))))
+  (s/and :lytek/entity
+         #(= :solar (:subcategory %))))
 
-(s/def :lytek/rulebook
-  (s/and
-    (s/merge :lytek/entity
-             (s/keys :req-un [:lytek/rulebook-charms
-                              :lytek/rulebook-merits]))
-    #(= (:category %) :rulebook)))
+;(s/def :lytek/solar
+;  (s/and
+;    (s/merge :lytek/enlightened
+;             (s/keys :req-un [:lytek/limit-trigger
+;                              :lytek/limit-accrued
+;                              :lytek/supernal
+;                              :lytek/favored-abilities]))
+;    #(contains? solar-castes (:subcategory %))))
+;
+;(s/def :lytek/rulebook
+;  (s/and
+;    (s/merge :lytek/entity
+;             (s/keys :req-un [:lytek/rulebook-charms
+;                              :lytek/rulebook-merits]))
+;    #(= (:category %) :rulebook)))
+
+(defmethod entity-category :rulebook [_]
+  (s/keys :req-un []))
 
 (defn get-applicable-spec-pre-coersion [{:as entity :keys [category subcategory]}]
   (cond

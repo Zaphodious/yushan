@@ -150,10 +150,10 @@
         (recur)))))
 (defonce writer-go (kickoff-writer-go-block write-to-chan))
 
-(def write-request-example
-  {:write-type      :insert
-   :return-chan     (async/chan)
-   :entity-to-write (gen/generate (s/gen :lytek/solar))})
+;(def write-request-example
+;  {:write-type      :insert
+;   :return-chan     (async/chan)
+;   :entity-to-write (gen/generate (s/gen :lytek/solar))})
 
 (defn write-entity!
   ([entity] (write-entity! entity :insert))
