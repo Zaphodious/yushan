@@ -123,7 +123,8 @@
 
 (s/def :lytek/category
   #{:character
-    :rulebook})
+    :rulebook
+    :castable})
 (sc/def :lytek/category coerce-to-keyword)
 
 (def solar-castes
@@ -140,9 +141,17 @@
     :fire
     :earth})
 
+(def castable-types
+  #{:charm
+    :evocation
+    :spell
+    :martial-arts})
+
 (s/def :lytek/subcategory
-  (se/union solar-castes
-            terrestrial-aspects))
+  (se/union
+    castable-types
+    solar-castes
+    terrestrial-aspects))
 (sc/def :lytek/subcategory coerce-to-keyword)
 
 (s/def :lytek/rank  
@@ -303,6 +312,16 @@
 (s/def :lytek/charm-keywords
   (s/coll-of :lytek.rulebook.charm/keyword :into #{}))
 
+(s/def :lytek/prerequisites
+  (s/coll-of :lytek/name :into #{}))
+(sc/def :lytek/prerequisites
+  (fn [a] (into #{} (map coerce-to-string a))))
+
+(s/def :lytek/from-artifact
+  :lytek/name)
+(sc/def :lytek/from-artifact
+  coerce-to-string)
+
 (s/def :lytek/page
   pos-int?)
 (sc/def :lytek/page
@@ -318,7 +337,34 @@
                    :lytek/charm-type
                    :lytek/duration
                    :lytek/cost
-                   :lytek/charm-keywords]))
+                   :lytek/prerequisites
+                   :lytek/charm-keywords]
+          :opt-un [:lytek/from-artifact]))
+
+(def sorcery-circles
+  #{:terrestrial
+    :celestial
+    :solar
+    :shadowlands
+    :labyrinth
+    :void})
+(s/def :lytek/sorcery-circle
+  sorcery-circles)
+
+
+(s/def :lytek/castable
+  (s/and
+    (s/merge :lytek/entity
+             (s/keys :req-un [:lytek/cost
+                              :lytek/duration
+                              :lytek/page
+                              :lytek/prerequisites
+                              :lytek/charm-keywords]
+                     :opt-un [:lytek/ability
+                              :lytek/from-artifact
+                              :lytek/sorcery-circle]))
+    #(= (:category %) :castable)
+    #(contains? castable-types (:subcategory %))))
 
 (s/def :lytek/rulebook-charms
   (s/coll-of :lytek/rulebook-charm))
@@ -361,6 +407,7 @@
                      :lytek/subcategory
                      :lytek/name
                      :lytek/description]))
+
 
 (s/def :lytek/combatant
   (s/merge :lytek/entity
