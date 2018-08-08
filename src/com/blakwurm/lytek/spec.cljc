@@ -358,6 +358,9 @@
                    :lytek/charm-keywords]
           :opt-un [:lytek/from-artifact]))
 
+(s/def :lytek/castables
+  (s/def (s/coll-of :lytek/id)))
+
 (def sorcery-circles
   #{:terrestrial
     :celestial
@@ -469,6 +472,10 @@
                    :lytek/committed-personal
                    :lytek/committed-peripheral]))
 
+(defn character-type-of [chartype]
+  (s/and :lytek/entity
+         #(= chartype (:subcategory %))))
+
 (defmethod character-type :solar [_]
   (s/merge :lytek/enlightened
            :lytek/combatant
@@ -481,9 +488,7 @@
                      :lytek/merits])))
 
 (s/def :lytek/solar
-  (s/and :lytek/entity
-         #(= :solar (:subcategory %))))
-
+  (character-type-of :solar))
 ;(s/def :lytek/solar
 ;  (s/and
 ;    (s/merge :lytek/enlightened
