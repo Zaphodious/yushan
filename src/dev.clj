@@ -8,10 +8,11 @@
 (defn foo []
   (println "booyeah!"))
 
-(def *nrepl-server (atom {}))
+(def *nrepl-server (atom nil))
 
 (defn start-nrepl []
-  (reset! *nrepl-server (nrepl/start-server :port 4242)))
+  (when-not @*nrepl-server
+    (reset! *nrepl-server (nrepl/start-server :port 4242))))
 
 (defn stop-nrepl []
   (nrepl/stop-server @*nrepl-server))
@@ -33,7 +34,7 @@
     (com.blakwurm.yushan.core/start-server)))
 
 (defn start-nrepl []
-  (nrepl/start-server :port 4242)
+  (start-nrepl)
   (println "Ripple In!"))
 
 (defn -main []
