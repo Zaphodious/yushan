@@ -36,6 +36,7 @@
    :name        {:opt? optional :prismatic-type String :param-type :query-filter :row-type :text}
    :id          {:opt? optional :prismatic-type String :param-type :query-filter :row-type :int :sql-extra [:primary :key]}
    :category    {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text}
+   :owner       {:opt? optional :prismatic-type String :write-as name :param-type :query-filter :row-type :text}
    :supernal    {:opt? optional :prismatic-type Keyword :param-type :query-filter}
    :perpage     {:opt? optional :prismatic-type Number :param-type :query-modifier}
    :pagenumber  {:opt? optional :prismatic-type Number :param-type :query-modifier}
@@ -60,7 +61,7 @@
           lymappo)))
 
 (defn coerce-entity [entity]
-  (let [coerse-spec (lyspec/get-applicable-spec-pre-coersion entity)]
+  (let [coerse-spec :lytek/entity]
     (-> entity
         map->lytek-map
         sc/coerce-structure
@@ -71,12 +72,12 @@
   [entity]
   #_(or (::s/problems (s/explain-data (lyspec/get-applicable-spec-pre-coersion entity) entity))
         true)
-  (nil? (s/explain-data (lyspec/get-applicable-spec-pre-coersion entity) entity)))
+  (nil? (s/explain-data :lytek/entity entity)))
 
 (defn is-entity-valid?
   "Passes entity to spec/valid?, using lyspec/get-applicable-spec-per-coersion"
   [entity]
-  (s/valid? (lyspec/get-applicable-spec-pre-coersion entity) entity))
+  (s/valid? :lytek/entity entity))
 
 (defn group-by-validity
   "returns a map, with :to-insert holding entities fit for insertion, and :to-return holding either 'true' or a spec/explain result"
@@ -186,7 +187,7 @@
 
 (defn insert-test-entity []
   (try
-    (write-entity! (gen/generate (s/gen :lytek/solar)))
+    (write-entity! (gen/generate (s/gen :lytek/entity)))
     (catch Exception e
       e)))
 
