@@ -387,18 +387,6 @@
 (s/def :lytek/grants-merits
   (s/coll-of :lytek/name :into []))
 
-(s/def :lytek/rulebook-merit
-  (s/keys :req-un [:lytek/name
-                   :lytek/description
-                   :lytek/page
-                   :lytek/grants-merits
-                   :lytek/repurchasable
-                   :lytek/merit-type
-                   :lytek/available-ranks]))
-
-(s/def :lytek/rulebook-merits
-  (s/coll-of :lytek/rulebook-merit :into []))
-
 (s/def :lytek/named
   (s/keys :req-un [:lytek/name
                    :lytek/description]))
