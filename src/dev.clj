@@ -12,7 +12,8 @@
 
 (defn start-nrepl []
   (when-not @*nrepl-server
-    (reset! *nrepl-server (nrepl/start-server :port 4242))))
+    (reset! *nrepl-server (nrepl/start-server :port 4242)))
+  (println "Ripple In!"))
 
 (defn stop-nrepl []
   (nrepl/stop-server @*nrepl-server))
@@ -32,10 +33,6 @@
     (stop-server)
     (namespace.repl/refresh)
     (com.blakwurm.yushan.core/start-server)))
-
-(defn start-nrepl []
-  (start-nrepl)
-  (println "Ripple In!"))
 
 (defn -main []
   (start-nrepl))

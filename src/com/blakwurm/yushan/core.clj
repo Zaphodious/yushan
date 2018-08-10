@@ -196,10 +196,9 @@
 
 (defn create-db []
   (try (jdbc/db-do-commands db-connection
-                            (jdbc/create-table-ddl :playerbooks
-                                                   [[:id :integer :primary :key]
-                                                    [:character :string :not :null]
-                                                    [:rulebook :string :not :null]])
+                            (jdbc/create-table-ddl :relationships
+                                                   [[:owner :string :not :null]
+                                                    [:property :string :not :null]])
                             (jdbc/create-table-ddl :entities
                                                    (params-to-db-rows query-params)))
        (catch Exception e (println "Table not created. " e))))
