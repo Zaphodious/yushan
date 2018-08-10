@@ -240,6 +240,11 @@
                              ((if (:row-type (k qp's)) sql-transform-basic sql-transform-rest) [k v]))
                            target-map))}))))
 
+(defn get-property-of [owner-id]
+  (jdbc/query db-connection (hsql/format ({:select :property 
+                                           :from :relationships
+                                           :where [:= :f.owner owner-id]}))))
+
 (defn read-entities [qp's params]
   (into []
         (map #(hydrate-entity-after-selection query-params %)
