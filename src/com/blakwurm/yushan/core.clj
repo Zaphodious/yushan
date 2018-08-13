@@ -32,16 +32,17 @@
   [:like :rest (str "%" k " " v "%")])
 
 (def query-params
-  {:subcategory {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text}
-   :name        {:opt? optional :prismatic-type String :param-type :query-filter :row-type :text}
-   :id          {:opt? optional :prismatic-type String :param-type :query-filter :row-type :int :sql-extra [:primary :key]}
-   :category    {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text}
-   :owner       {:opt? optional :prismatic-type String :write-as name :param-type :query-filter :row-type :text}
-   :supernal    {:opt? optional :prismatic-type Keyword :param-type :query-filter}
+  {:subcategory {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text :table :entities}
+   :name        {:opt? optional :prismatic-type String :param-type :query-filter :row-type :text :table :entities}
+   :id          {:opt? optional :prismatic-type String :param-type :query-filter :row-type :text :sql-extra [:primary :key] :table :entities}
+   :category    {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text :table :entities}
+   :owner       {:opt? optional :prismatic-type String :write-as name :param-type :query-filter :row-type :text :table :relationships}
+   :property    {:opt? optional :prismatic-type String :write-as name :param-type :query-filter :row-type :text :table :relationships}
+   :supernal    {:opt? optional :prismatic-type Keyword :param-type :query-filter} 
    :perpage     {:opt? optional :prismatic-type Number :param-type :query-modifier}
    :pagenumber  {:opt? optional :prismatic-type Number :param-type :query-modifier}
-   :description {:param-type :row :row-type :text}
-   :rest        {:param-type :row :row-type :text}})
+   :description {:param-type :row :row-type :text :table :entities}
+   :rest        {:param-type :row :row-type :text :table :entities}})
 
 (defn map->lytek-map [mappo]
   (into {}
@@ -89,10 +90,11 @@
   {:subcategory "dawn"
    :name        "Mubaraka"})
 
-(defn params-to-db-rows [qp's]
+(defn params-to-db-rows [qp's table-name-kv]
   (->> qp's
        (map (fn [[k v]] (assoc v :key k)))
        (filter :row-type)
+       (filter (fn [{:keys [table]}] (= table table-name-kv)))
        (map (fn [{:as m :keys [key row-type sql-extra]}]
               (into [(str/replace (name key) "-" "_")
                      row-type]
@@ -194,14 +196,25 @@
 (defn insert-some-test-entities! [amt]
   (async/go (dotimes [n amt] (insert-test-entity))))
 
-(defn create-db []
+(defn get-tables-used [qp's]
+  (->> qp's
+       (map second)
+       (filter :table)
+       (map :table)
+       (set)))
+
+(defn create-table [table-name-kw]
   (try (jdbc/db-do-commands db-connection
-                            (jdbc/create-table-ddl :relationships
-                                                   [[:owner :string :not :null]
-                                                    [:property :string :not :null]])
-                            (jdbc/create-table-ddl :entities
-                                                   (params-to-db-rows query-params)))
+                            (jdbc/create-table-ddl table-name-kw 
+                                                   (params-to-db-rows query-params table-name-kw)))
        (catch Exception e (println "Table not created. " e))))
+
+(defn create-db []
+  (->> query-params
+       (get-tables-used)
+       (map create-table)
+       (into [])))
+ 
 
 (defn drop-entities! []
   (jdbc/db-do-commands db-connection (jdbc/drop-table-ddl :entities)))
@@ -216,14 +229,15 @@
                  [(opt? query-key) prismatic-type]))
              qp's)))
 
-(defn params-by-param-type [qp's]
-  (reduce (fn [ds [query-key {:keys [opt? prismatic-type param-type]}]]
-            (assoc ds param-type (conj (or (get ds param-type) []) query-key)))
-          {}
-          qp's))
+(defn params-by-param-type [qp's table-name]
+  (->> qp's 
+    (filter (fn [[_ {:keys [table]}]] (= table-name table)))
+    (reduce (fn [ds [query-key {:keys [opt? prismatic-type param-type]}]]
+              (assoc ds param-type (conj (or (get ds param-type) []) query-key)))
+            {})))
 
-(defn params-to-honey-query [qp's params]
-  (let [{:keys [query-filter]} (params-by-param-type qp's)
+(defn params-to-honey-query [qp's params table-name]
+  (let [{:keys [query-filter]} (params-by-param-type qp's table-name)
         target-map (select-keys params query-filter)
         subfilter-keys (keys target-map)]
     (println "params are " params)
@@ -248,7 +262,7 @@
 (defn read-entities [qp's params]
   (into []
         (map #(hydrate-entity-after-selection query-params %)
-             (jdbc/query db-connection (hsql/format (params-to-honey-query qp's params))))))
+             (jdbc/query db-connection (hsql/format (params-to-honey-query qp's params :entities))))))
 
 (defn api-read [request]
   (let [{:keys [] :as params} (:query (:parameters request))]

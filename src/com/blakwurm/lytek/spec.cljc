@@ -482,3 +482,6 @@
                                 :else :lytek/character)
       (= category :rulebook) :lytek/rulebook
       :else :lytek/entity))
+
+(s/def :lytek/ownership
+  (s/tuple :lytek/id :lytek/id))
