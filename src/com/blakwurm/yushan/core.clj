@@ -264,6 +264,9 @@
         (map #(hydrate-entity-after-selection query-params %)
              (jdbc/query db-connection (hsql/format (params-to-honey-query qp's params :entities))))))
 
+(defn dispatch-params [qp's request {:keys [entity-request relationship-request]}]
+  (let [params (:query (:parameters request))]))
+
 (defn api-read [request]
   (let [{:keys [] :as params} (:query (:parameters request))]
     {:resp   0
