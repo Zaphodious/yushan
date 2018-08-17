@@ -33,7 +33,7 @@
 
 (def query-params
   {:subcategory {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text :table :entities}
-   :mode        {:opt? optional :prismatic-type String :write-as name :read-ad keyword :param-type :query-filter}
+   :mode        {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter}
    :name        {:opt? optional :prismatic-type String :param-type :query-filter :row-type :text :table :entities}
    :id          {:opt? optional :prismatic-type String :param-type :query-filter :row-type :text :sql-extra [:primary :key] :table :entities}
    :category    {:opt? optional :prismatic-type String :write-as name :read-as keyword :param-type :query-filter :row-type :text :table :entities}
@@ -266,8 +266,8 @@
              (jdbc/query db-connection (hsql/format (params-to-honey-query qp's params :entities))))))
 
 (defn dispatch-params [qp's request {:keys [entity-request relationship-request]}]
-  (let [{:as params :keys [category owner]} (:query (:parameters request))]))
-        
+  (let [{:as params :keys [mode category owner]} (:query (:parameters request))]
+       (cond ))) 
 
 (defn api-read [request]
   (let [{:keys [] :as params} (:query (:parameters request))]
