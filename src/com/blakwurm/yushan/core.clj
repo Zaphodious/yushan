@@ -87,6 +87,25 @@
   {:to-insert (filter is-entity-valid? entity-seq)
    :to-return (map explain-entity-validity entity-seq)})
 
+(defn determine-query-mode [{:as params :keys [mode]}]
+  (let [tables-referenced (->> params 
+                               (map first)
+                               (map #(get query-params %)) 
+                               (map :table) 
+                               (filter #(not (nil? %)))
+                               sort)]
+   (cond
+     mode mode
+     (not (empty? tables-referenced)) (first tables-referenced))))
+
+(defn remove-non-mode-params [param-map]
+  (let [query-mode (determine-query-mode param-map)]
+    (->> param-map
+        (filter (fn [[k v]] (= (:table (get query-params k)) query-mode))) 
+        (into {:mode query-mode}))))
+             
+      
+
 (def test-query
   {:subcategory "dawn"
    :name        "Mubaraka"})
@@ -139,7 +158,7 @@
                             (catch Exception e
                               false))]
       (async/>! return-chan (sanitize-return input-result)))))
-
+ 
 (defonce write-to-chan (async/chan 10000))                      ;(map #(prep-entity-for-insertion query-params %))))
 
 (defn kickoff-writer-go-block [chan]
@@ -265,9 +284,9 @@
         (map #(hydrate-entity-after-selection query-params %)
              (jdbc/query db-connection (hsql/format (params-to-honey-query qp's params :entities))))))
 
-(defn dispatch-params [qp's request {:keys [entity-request relationship-request]}]
-  (let [{:as params :keys [mode category owner]} (:query (:parameters request))]
-       (cond ))) 
+(defn dispatch-params [qp's request mode-handlers]
+  (let [{:as params :keys [mode category owner]} (:query (:parameters request))
+        handler (get mode-handlers (or (:mode)))])) 
 
 (defn api-read [request]
   (let [{:keys [] :as params} (:query (:parameters request))]
