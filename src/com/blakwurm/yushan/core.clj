@@ -87,7 +87,7 @@
   {:to-insert (filter is-entity-valid? entity-seq)
    :to-return (map explain-entity-validity entity-seq)})
 
-(defn determine-query-mode [{:as params :keys [mode]}]
+(defn determine-mode [{:as params :keys [mode]}]
   (let [tables-referenced (->> params 
                                (map first)
                                (map #(get query-params %)) 
@@ -99,7 +99,7 @@
      (not (empty? tables-referenced)) (first tables-referenced))))
 
 (defn remove-non-mode-params [param-map]
-  (let [query-mode (determine-query-mode param-map)]
+  (let [query-mode (determine-mode param-map)]
     (->> param-map
         (filter (fn [[k v]] (= (:table (get query-params k)) query-mode))) 
         (into {:mode query-mode}))))
@@ -256,14 +256,16 @@
               (assoc ds param-type (conj (or (get ds param-type) []) query-key)))
             {})))
 
-(defn params-to-honey-query [qp's params table-name]
-  (let [{:keys [query-filter]} (params-by-param-type qp's table-name)
+(defn params-to-honey-query [qp's params]
+  (let [table-name (determine-mode params)
+        {:keys [query-filter] :as params-by-type} (params-by-param-type qp's table-name)
         target-map (select-keys params query-filter)
         subfilter-keys (keys target-map)]
+    (println "params-by-type are " params-by-type)
     (println "params are " params)
     (merge
       {:select [:*]
-       :from   [:entities]
+       :from   [table-name]
        :limit  (or (:perpage params) 10)
        :offset (* (or (:perpage params) 10)
                   (min 0 (dec (or (:pagenumber params) 1))))}
@@ -274,7 +276,7 @@
                              ((if (:row-type (k qp's)) sql-transform-basic sql-transform-rest) [k v]))
                            target-map))}))))
 
-(defn get-property-of [owner-id]
+(defn get-relationships-under [owner-id]
   (jdbc/query db-connection (hsql/format ({:select :property 
                                            :from :relationships
                                            :where [:= :f.owner owner-id]}))))
@@ -282,7 +284,17 @@
 (defn read-entities [qp's params]
   (into []
         (map #(hydrate-entity-after-selection query-params %)
-             (jdbc/query db-connection (hsql/format (params-to-honey-query qp's params :entities))))))
+             (jdbc/query db-connection (hsql/format (params-to-honey-query qp's (assoc params :mode :entities)))))))
+
+(defmulti update-record determine-mode)
+
+(defmethod update-record :entities
+  [entity]
+  :blabla)
+
+(defmethod update-record :relationships
+  [relationship]
+  :hohoho)
 
 (defn dispatch-params [qp's request mode-handlers]
   (let [{:as params :keys [mode category owner]} (:query (:parameters request))
@@ -312,10 +324,13 @@
 
 (defonce *update (atom {}))
 
-(defn api-update [request]
+(defn api-update-relationships [request])
+
+(defn api-update-entities [request]
   (reset! *update (:data (:body request)))
   (let [coerced-entities (map coerce-entity (-> request :body :data))
-        merged-entities (map (fn [a] (merge (first (read-entities query-params {:id (:id a)})) a)) coerced-entities)
+        merged-entities (map (fn [a] (merge (first (read-entities query-params {:id (:id a)})) a)) 
+                             coerced-entities)
         {:keys [to-insert to-return]} (group-by-validity merged-entities)]
     (println (map :id merged-entities))
     ;(println to-return)
@@ -324,6 +339,10 @@
               0 1)
      :data  to-return
      :error ""}))
+
+(defn api-update [request]
+  (let [op-mode :entities]
+    (api-update-entities request)))
 
 (defn api-delete [request]
   (println "deleting " (map :id (-> request :body :data)))
