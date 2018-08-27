@@ -10,7 +10,7 @@
 
 (defn go
   "Load and switch to the 'dev' namespace."
-  []
+  [& opts]
   (dev/start-nrepl)
   (yushan/start-server)
   (require 'com.blakwurm.yushan.core)
