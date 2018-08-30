@@ -42,6 +42,13 @@
    :description {:param-type :row :row-type :text}
    :rest        {:param-type :row :row-type :text}})
 
+(defn relationship-params
+  {:id          {:opt? optional :prismatic-type String :param-type :query-filter :row-type :int :sql-extra [:primary :key]} 
+   :owner       {:opt? optional :prismatic-type String :write-as name :read-as name :param-type :query-filter :row-type :text}
+   :perpage     {:opt? optional :prismatic-type Number :param-type :query-modifier}
+   :pagenumber  {:opt? optional :prismatic-type Number :param-type :query-modifier}
+   :property    {:opt? optional :prismatic-type String :write-as name :read-as name :param-type :query-filter :row-type :text}})
+
 (defn map->lytek-map [mappo]
   (into {}
         (map
