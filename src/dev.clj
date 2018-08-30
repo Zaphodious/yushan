@@ -1,17 +1,23 @@
 (ns dev
   (:require [clojure.tools.nrepl.server :as nrepl]
             [com.blakwurm.yushan.core :as yushan]
-            [clojure.tools.namespace.repl :as namespace.repl]))
+            [clojure.tools.namespace.repl :as namespace.repl]
 
 (println "user ns loaded")
 
 (defn foo []
   (println "booyeah!"))
 
-(def *nrepl-server (atom {}))
+(def *nrepl-server (atom nil))
+
+(defn cider-handler []
+  (require 'cider.nrepl)
+  (ns-resolve 'cider.nrepl 'cider-nrepl-handler))
 
 (defn start-nrepl []
-  (reset! *nrepl-server (nrepl/start-server :port 4242)))
+  (when-not @*nrepl-server
+    (reset! *nrepl-server (nrepl/start-server :port 4242 :handler (cider-handler))))
+  (println "Ripple In!"))
 
 (defn stop-nrepl []
   (nrepl/stop-server @*nrepl-server))
@@ -26,15 +32,14 @@
   (do
     (start-server)))
 
+(defn start-cider []
+  (nrepl-server/start-server :port 4242 :handler (cider-handler))) 
+
 (defn reset []
   (do
     (stop-server)
     (namespace.repl/refresh)
     (com.blakwurm.yushan.core/start-server)))
-
-(defn start-nrepl []
-  (nrepl/start-server :port 4242)
-  (println "Ripple In!"))
 
 (defn -main []
   (start-nrepl))

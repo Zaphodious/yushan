@@ -6,4 +6,6 @@
         honeysql                    {:mvn/version "0.9.3"}
         com.bhauman/rebel-readline  {:mvn/version "0.1.4"}
         org.clojure/tools.namespace {:mvn/version "0.2.11"}
-        spec-coerce                 {:mvn/version "1.0.0-alpha6"}}}
+        spec-coerce                 {:mvn/version "1.0.0-alpha6"} 
+        cider/cider-nrepl           {:mvn/version "0.18.0"} 
+        com.rpl/specter             {:mvn/version "1.1.1"}}}
