@@ -1,7 +1,7 @@
 (ns dev
   (:require [clojure.tools.nrepl.server :as nrepl]
             [com.blakwurm.yushan.core :as yushan]
-            [clojure.tools.namespace.repl :as namespace.repl]
+            [clojure.tools.namespace.repl :as namespace.repl]))
 
 (println "user ns loaded")
 
@@ -31,9 +31,6 @@
 (defn start-all []
   (do
     (start-server)))
-
-(defn start-cider []
-  (nrepl-server/start-server :port 4242 :handler (cider-handler))) 
 
 (defn reset []
   (do
