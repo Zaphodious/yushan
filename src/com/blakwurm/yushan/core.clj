@@ -8,6 +8,8 @@
             [ring.middleware.params :as middleware.params]
             [ring.middleware.content-type :as middleware.content-type]
             [ring.middleware.not-modified :as middleware.not-modified]
+            [ring.middleware.file :as middleware.file]
+            [ring.middleware.resource :as middleware.resource]
             [schema.core :as schema]
             [clojure.test.check.generators]
             [ring.util.response :as res]
@@ -20,6 +22,7 @@
             [honeysql.core :as hsql]
             [honeysql.helpers :as hsql.help]
             [spec-coerce.core :as sc]
+            [liberator.core :as liberator :refer [resource defresource]]
             [clojure.tools.namespace.repl :as namespace.repl]))
 
 (defn give-a-thing [request]
@@ -30,12 +33,21 @@
 ;; The following weirdness is written this way so that
 ;; we don't have to restart the server after every change. 
 (defn simple-handler [a]
-    (res/response (#'give-a-thing a)))
+  (resource))
+
+(defresource api-object
+  :available-media-types ["application/json"]
+  :handle-ok {:thing "badboi"})
+
+(defn index-handler [a]
+  (assoc-in
+    (res/file-response "public/index.html")
+    [:headers "Content-Type"]
+    "text/html"))
 
 (def routes
-  ["/" {"" #'simple-handler
-        "thing" #'simple-handler
-        "api" {"/entities" {"/v1" #'simple-handler}}}])
+  ["/" {"thing" #'simple-handler
+        "api" {"/entities" {"/v1" #'api-object}}}])
 
 (def route-handler
   (bidi.ring/make-handler routes))
@@ -43,9 +55,11 @@
 (defn make-middleware []
  (-> #'route-handler                
      middleware.keyword-params/wrap-keyword-params
-     middleware.params/wrap-params
-     middleware.content-type/wrap-content-type
-     middleware.not-modified/wrap-not-modified))
+     middleware.params/wrap-params))
+    ;(middleware.file/wrap-file "public")))
+    ;middleware.content-type/wrap-content-type
+    ;middleware.not-modified/wrap-not-modified))
+     
 
 (def middlewares (make-middleware))
 
