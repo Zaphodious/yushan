@@ -6,4 +6,5 @@
         honeysql                    {:mvn/version "0.9.3"}
         com.bhauman/rebel-readline  {:mvn/version "0.1.4"}
         org.clojure/tools.namespace {:mvn/version "0.2.11"}
+        liberator                   {:mvn/version "0.15.2"}
         spec-coerce                 {:mvn/version "1.0.0-alpha6"}}}
