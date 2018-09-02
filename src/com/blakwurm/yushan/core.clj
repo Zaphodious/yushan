@@ -24,6 +24,9 @@
 (def routes
   ["/" #'simple-handler])
 
+(def route-handler
+  (bidi.ring/make-handler routes))
+
 (def *server (atom nil))
 
 (defn start-server []
@@ -35,7 +38,7 @@
   ;; (db/use-database! "jdbc:mysql://localhost/test" "user" "password")
 
   ;; other init staff, like init-db, init-redis, ...
-  (reset! *server (httpkit-server/run-server (bidi.ring/make-handler #'routes) {:port 3000})))
+  (reset! *server (httpkit-server/run-server #'route-handler) {:port 3000}))
 
 (defn stop-server []
   (when-not (nil? @*server)
