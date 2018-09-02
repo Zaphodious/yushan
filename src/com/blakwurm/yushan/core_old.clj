@@ -1,4 +1,4 @@
-(ns com.blakwurm.yushan.core
+(ns com.blakwurm.yushan.core-old
   (:require [yada.yada :as yada]
             [yada.resources.file-resource :as yada.file]
             [bidi.bidi :as bidi]
