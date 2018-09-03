@@ -16,3 +16,7 @@
   (require 'com.blakwurm.yushan.core)
   (in-ns 'com.blakwurm.yushan.core)
   :loaded)
+
+  
+(defn -main [& args]
+  (dev/start-nrepl))
