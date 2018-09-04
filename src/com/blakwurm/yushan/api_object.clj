@@ -2,7 +2,9 @@
     (:require [liberator.core :as liberator] 
               [clojure.spec.alpha :as s]
               [spec-coerce.core :as sc]
-              [com.blakwurm.lytek.spec :as lyspec]))
+              [com.blakwurm.lytek.spec :as lyspec]
+              [clojure.set :as c.set]
+              [clojure.edn :as edn]))
 
 (defmulti api-object-for identity)
 
@@ -10,14 +12,35 @@
   (let [{:keys [prepare-params] :as api-object} (api-object-for api-object-name)]
     (prepare-params (:params (:request context)))))
 
+(defn split-map 
+  "Accepts a map and a seq of keys. Returns a vector containing [a map with just the keys from the, a map with the rest of the keys."
+  [m split-keys]
+  (let [inclusive-m (select-keys m split-keys)
+        exclusive-m (select-keys m (c.set/difference (set (keys m))
+                                                     (set split-keys)))]
+    [inclusive-m exclusive-m]))
+
+(defn standard-dessicate [api-name thing]
+  (let [{:keys [columns] :as api-map} (api-object-for api-name)
+        column-names (map first columns)
+        [slim-map rest-map] (split-map thing column-names)
+        store-map (assoc slim-map :rest (pr-str rest-map))]
+    store-map)) 
+                      
+(defn standard-hydrate [thing]
+  (let [the-rest (:rest thing)
+        thing-without-rest (dissoc thing :rest)
+        hydrated-rest (edn/read-string the-rest)]
+    (merge thing-without-rest hydrated-rest))) 
+
 (defmethod api-object-for :sample [_]
   {:name :sample
    :columns {:name [:string]
              :id [:string :primary :key]
              :description [:string]
              :rest [:string]}
-   :dessicate (fn [a] a)
-   :hydrate (fn [a] a) 
+   :dessicate (partial standard-dessicate :sample)
+   :hydrate standard-hydrate 
    :prepare-params lyspec/coerce-structure})
 
 (def sample-api-def-doc
