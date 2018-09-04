@@ -485,3 +485,28 @@
 
 (s/def :lytek/ownership
   (s/tuple :lytek/id :lytek/id))
+
+
+
+(defn map->lytek-map [mappo]
+  (into {}
+        (map
+          (fn [[k v]]
+            {(if (qualified-keyword? k)
+               k
+               (keyword "lytek" (name k)))
+             v})
+          mappo)))
+
+(defn lytek-map->map [lymappo]
+  (into {}
+        (map
+          (fn [[k v]]
+            {(keyword (name k)) v})
+          lymappo)))
+
+(defn coerce-structure [structure]
+    (-> structure
+        map->lytek-map
+        sc/coerce-structure
+        lytek-map->map))

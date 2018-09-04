@@ -23,21 +23,21 @@
             [honeysql.helpers :as hsql.help]
             [spec-coerce.core :as sc]
             [liberator.core :as liberator :refer [resource defresource]]
-            [clojure.tools.namespace.repl :as namespace.repl]))
+            [clojure.tools.namespace.repl :as namespace.repl]
+            [com.blakwurm.yushan.api-object :as api-object]))
 
 (defn give-a-thing [request]
-  (pr-str {:request request
-           :testthing "Turns out you need to connect anew each time"}))
+  (pr-str (api-object/find-params :sample request)))
 
 ;; In order to dev quickly, we abuse clojure's var system.
 ;; The following weirdness is written this way so that
 ;; we don't have to restart the server after every change. 
 (defn simple-handler [a]
-  (resource))
+  (res/response {:stringified-request (give-a-thing a)}))
 
 (defresource api-object
   :available-media-types ["application/json"]
-  :handle-ok {:thing "badboi"})
+  :handle-ok simple-handler)
 
 (defn index-handler [a]
   (assoc-in
@@ -51,6 +51,9 @@
 
 (def route-handler
   (bidi.ring/make-handler routes))
+
+(defn wrap-bring-params-up [handle-fn]
+  (fn [a] (handle-fn (assoc a :params [:foo :bar]))))
 
 (defn make-middleware []
  (-> #'route-handler                
