@@ -20,6 +20,19 @@
                                                      (set split-keys)))]
     [inclusive-m exclusive-m]))
 
+(defn determine-api-response-code [seq-of-things]
+  (let [db-ops-didnt-succeed (false? (first (filter false? seq-of-things)))]
+    (cond
+      db-ops-didnt-succeed 1
+      :default [0 ""])))
+
+(defn make-api-response [api-name seq-of-things]
+  (let [{:keys [hydrate] :as api-map} (api-object-for api-name)
+        [resp-code error-message] (determine-api-response-code seq-of-things)]
+   {:resp resp-code
+    :data (map hydrate seq-of-things)
+    :error error-message}))
+
 (defn standard-dessicate [api-name thing]
   (let [{:keys [columns] :as api-map} (api-object-for api-name)
         column-names (map first columns)
