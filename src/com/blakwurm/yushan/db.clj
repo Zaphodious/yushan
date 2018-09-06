@@ -15,24 +15,34 @@
 (defn --init-db-access-go [chan]
   (async/go-loop []
     (let [{:keys [access-fn return-chan]} (async/<! chan)
-          write-result (access-fn)]
+          write-result (try (access-fn)
+                            (catch Exception e
+                              (do
+                               (println "Exception in writer thread")
+                               (println e)
+                               false)))]
       (async/>! return-chan write-result))
     (recur)))
 (reset! *--access-go (--init-db-access-go --db-access-chan))
 
-(defn make-query-from-map [thingmap]
+(defn make-query-from-map
+  "Takes a regular map, and convers it into a honey 'for' clause"
+  [thingmap]
   (->> thingmap
        (map (fn [[k v]] [:= k v]))
        (into [:and])))
 
 (defn --make-full-query [{:keys [table query page count] :or {page 0, count 10}}]
   (let [query-vec (if (vector? query) query
-                                      (make-query-from-map query))]
-    (honey/format {:select [:*]
-                   :from   [table]
-                   :limit count
-                   :offset (* page count)
-                   :where  query-vec})))
+                                      (make-query-from-map query))
+        no-where-map {:select [:*]
+                      :from   [table]
+                      :limit count
+                      :offset (* page count)}
+        where-map (if (empty? query)
+                    {}
+                    {:where query-vec})]
+    (honey/format (into no-where-map where-map))))
 
 (defn --access
   "Private function providing access to the DB. Takes a lambda, executes it on the coordinated db thread and returns
@@ -43,7 +53,10 @@
       (async/go (async/>! --db-access-chan {:access-fn access-fn :return-chan return-chan}))
       (async/<!! return-chan))
     (catch Exception e
-      false)))
+      (do
+       (println "Exception in access fn")
+       (println e)
+       false))))
 
 (defn --insert [{:keys [table transform-fn thing] :or {transform-fn identity}}]
   (try
@@ -77,10 +90,10 @@
        (map (fn [[k v]] (into [k] v)))
        (into [])))
 
-(defn --make-table [{:keys [table-name column-info]}]
-  (jdbc/db-do-commands db-connection (jdbc/create-table-ddl table-name (if (map? column-info)
-                                                                         (map-to-column-spec column-info)
-                                                                         column-info))))
+(defn --make-table [{:keys [table column-info]}]
+  (jdbc/db-do-commands db-connection (jdbc/create-table-ddl table (if (map? column-info)
+                                                                    (map-to-column-spec column-info)
+                                                                    column-info))))
 
 (defn --drop-table [{:keys [table-name]}]
   (jdbc/db-do-commands db-connection (jdbc/drop-table-ddl table-name)))
@@ -103,8 +116,8 @@
 (defn delete-one [{:keys [table id] :as params}]
   (first (--access #(--delete params))))
 
-(defn make-table [{:keys [table-name column-info] :as params}]
+(defn make-table [{:keys [table column-info] :as params}]
   (--access #(--make-table params)))
 
-(defn drop-table [{:keys [table-name] :as params}]
+(defn drop-table [{:keys [table] :as params}]
   (--access #(--drop-table params)))

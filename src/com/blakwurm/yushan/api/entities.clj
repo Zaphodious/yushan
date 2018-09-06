@@ -10,7 +10,8 @@
              :description [:string]
              :category [:string]
              :subcategory [:string]
-             :variation [:string]}
+             :variation [:string]
+             :rest [:string]}
    :prepare-params lyspec/coerce-structure
    :dessicate #(yushan.api-object/standard-dessicate :entities %) 
    :hydrate yushan.api-object/standard-hydrate})

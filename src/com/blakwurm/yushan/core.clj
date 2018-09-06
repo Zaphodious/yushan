@@ -24,10 +24,11 @@
             [spec-coerce.core :as sc]
             [liberator.core :as liberator :refer [resource defresource]]
             [clojure.tools.namespace.repl :as namespace.repl]
-            [com.blakwurm.yushan.api-object :as api-object]))
+            [com.blakwurm.yushan.api-object :as yushan.api-object]
+            [com.blakwurm.yushan.api.entities]))
 
 (defn give-a-thing [request]
-  (pr-str (api-object/find-params :sample request)))
+  (pr-str (yushan.api-object/find-params :sample request)))
 
 ;; In order to dev quickly, we abuse clojure's var system.
 ;; The following weirdness is written this way so that
@@ -37,7 +38,7 @@
 
 (defresource api-object
   :available-media-types ["application/json"]
-  :handle-ok simple-handler)
+  :handle-ok (yushan.api-object/wrap-api-call :entities))
 
 (defn index-handler [a]
   (assoc-in

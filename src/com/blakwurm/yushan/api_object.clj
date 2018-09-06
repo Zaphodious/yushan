@@ -4,7 +4,8 @@
               [spec-coerce.core :as sc]
               [com.blakwurm.lytek.spec :as lyspec]
               [clojure.set :as c.set]
-              [clojure.edn :as edn]))
+              [clojure.edn :as edn]
+              [com.blakwurm.yushan.db :as yushan.db]))
 
 (defmulti api-object-for identity)
 
@@ -19,7 +20,6 @@
         exclusive-m (select-keys m (c.set/difference (set (keys m))
                                                      (set split-keys)))]
     [inclusive-m exclusive-m]))
-
 (defn determine-api-response-code [seq-of-things]
   (let [db-ops-didnt-succeed (false? (first (filter false? seq-of-things)))]
     (cond
@@ -27,11 +27,15 @@
       :default [0 ""])))
 
 (defn make-api-response [api-name seq-of-things]
-  (let [{:keys [hydrate] :as api-map} (api-object-for api-name)
-        [resp-code error-message] (determine-api-response-code seq-of-things)]
-   {:resp resp-code
-    :data (map hydrate seq-of-things)
-    :error error-message}))
+  (if (boolean? seq-of-things)
+     {:resp 1
+      :data [nil]
+      :error ""}
+   (let [{:keys [hydrate] :as api-map} (api-object-for api-name)
+         [resp-code error-message] (determine-api-response-code seq-of-things)]
+     {:resp resp-code
+      :data (map hydrate seq-of-things)
+      :error error-message})))
 
 (defn standard-dessicate [api-name thing]
   (let [{:keys [columns] :as api-map} (api-object-for api-name)
@@ -58,7 +62,7 @@
 
 (def sample-api-def-doc
   {:name "A keyword denoting the resource's name."
-   :column "A map of keyword column names to their sql column spec. Passed into yushan.db/make-table as :column-info."
+   :columns "A map of keyword column names to their sql column spec. Passed into yushan.db/make-table as :column-info."
    :dessicate "Lambda of thing to stored-thing. Transforms the thing for storage in the database."
    :hydrate "Lambda of stored-thing to thing. Transforms the thing from what's stored in the database to a usable thing."
    :prepare-params "Lambda of 'raw' params from ring request, to params used by inner logic. Default is identity."})
@@ -82,4 +86,23 @@
     :handle-ok {:thing "badboi"}))
 
 
+(defn wrap-api-call [api-name]
+  (fn [fn-param]
+    (let [{:keys [request]} fn-param
+          {:keys [prepare-params
+                  hydrate
+                  columns] :as api-map} (api-object-for api-name)
+          conformed-params (prepare-params (:params request))
+          [actual-params secondary-params] (split-map conformed-params
+                                                      (keys columns))
+          query-params (into secondary-params
+                             {:table-name api-name
+                              :query actual-params
+                              :transform-fn hydrate})
+          query-result (yushan.db/read-many query-params)]
+      (make-api-response api-name query-result))))   
 
+(defn make-table-for-api-name [api-name]
+  (let [{:keys [columns]} (api-object-for api-name)]
+   (yushan.db/make-table {:table api-name
+                          :column-info columns})))
