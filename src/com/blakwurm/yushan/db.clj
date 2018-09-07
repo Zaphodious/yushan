@@ -78,7 +78,7 @@
 
 (defn --read [{:keys [table query count page transform-fn] :as param-map :or {transform-fn identity}}]
   (try
-    (transform-fn (jdbc/query db-connection (--make-full-query param-map)))
+    (map transform-fn (jdbc/query db-connection (--make-full-query param-map)))
     (catch Exception e
       false)))
 

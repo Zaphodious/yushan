@@ -67,7 +67,7 @@
    :hydrate "Lambda of stored-thing to thing. Transforms the thing from what's stored in the database to a usable thing."
    :prepare-params "Lambda of 'raw' params from ring request, to params used by inner logic. Default is identity."})
 
-(def template-api-shell
+(def empty-api-response
   {:resp 0
    :error ""
    :data []})
@@ -85,8 +85,32 @@
     :available-media-types ["application/json"]
     :handle-ok {:thing "badboi"}))
 
+(defn handle-post! [api-name]
+  empty-api-response)
 
-(defn wrap-api-call [api-name]
+(defn wrap-api-update [api-name]
+  empty-api-response)
+
+(defn wrap-api-delete [api-name]
+  empty-api-response)
+
+(defn wrap-api-read [api-name]
+  empty-api-response)
+
+(defn handle-ok [api-name]
+  (fn [{:as fn-param :keys [request]}]
+    (let [{:keys [prepare-params hydrate columns]} (api-object-for api-name)  
+          conformed-params (prepare-params (:params request))
+          [actual-p secondary-p] (split-map conformed-params (keys columns))
+          query-params (into secondary-p
+                             {:table api-name
+                              :query actual-p
+                              :transform-fn hydrate})
+          query-result (yushan.db/read-many query-params)
+          api-responso (make-api-response api-name query-result)]
+      query-result)))
+
+(defn handle-ok-bad [api-name]
   (fn [fn-param]
     (let [{:keys [request]} fn-param
           {:keys [prepare-params

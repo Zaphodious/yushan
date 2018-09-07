@@ -38,7 +38,9 @@
 
 (defresource api-object
   :available-media-types ["application/json"]
-  :handle-ok (yushan.api-object/wrap-api-call :entities))
+  :allowed-methods [:get :post]
+  :handle-ok (yushan.api-object/handle-ok :entities)
+  :post! (fn [a] (pr-str a)))
 
 (defn index-handler [a]
   (assoc-in
