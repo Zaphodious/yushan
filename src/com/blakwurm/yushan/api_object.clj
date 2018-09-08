@@ -131,15 +131,6 @@
      (println write-data)
      {::insert-result id-write-result})))
 
-(defn wrap-api-update [api-name]
-  empty-api-response)
-
-(defn wrap-api-delete [api-name]
-  empty-api-response)
-
-(defn wrap-api-read [api-name]
-  empty-api-response)
-
 (defn handle-ok [api-name]
   (fn [{:as fn-param :keys [request]}]
     (let [{:keys [prepare-params hydrate columns]} (api-object-for api-name)  
