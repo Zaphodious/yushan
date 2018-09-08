@@ -6,7 +6,9 @@
               [clojure.set :as c.set]
               [clojure.edn :as edn]
               [clojure.data.json :as json]
-              [com.blakwurm.yushan.db :as yushan.db]))
+              [com.blakwurm.yushan.db :as yushan.db]
+              [clojure.string :as str])
+    (:import java.util.Base64))
 
 (defmulti api-object-for identity)
 
@@ -51,22 +53,42 @@
         hydrated-rest (edn/read-string the-rest)]
     (merge thing-without-rest hydrated-rest))) 
 
+(defn encode-64 [to-encode]
+  (.encodeToString (Base64/getEncoder) (.getBytes to-encode)))
+
+(defn standard-gen-id [api-name]
+    (let [randostring (-> (str (rand))
+                          (str (rand))
+                          (str (rand))
+                          (str (rand))
+                          (str (rand))
+                          (str (rand))
+                          encode-64
+                          encode-64
+                          (subs 10 27))
+           api-pref (reduce str (take 3 (name api-name)))            
+           subrando (str "YU" api-pref randostring)]
+      subrando))
+        
+
 (defmethod api-object-for :sample [_]
   {:name :sample
    :columns {:name [:string]
              :id [:string :primary :key]
              :description [:string]
              :rest [:string]}
-   :dessicate (partial standard-dessicate :sample)
+   :dessicate #(standard-dessicate :sample %)
    :hydrate standard-hydrate 
-   :prepare-params lyspec/coerce-structure})
+   :prepare-params lyspec/coerce-structure
+   :generate-new-id #(standard-gen-id :sample)})
 
 (def sample-api-def-doc
   {:name "A keyword denoting the resource's name."
    :columns "A map of keyword column names to their sql column spec. Passed into yushan.db/make-table as :column-info."
    :dessicate "Lambda of thing to stored-thing. Transforms the thing for storage in the database."
    :hydrate "Lambda of stored-thing to thing. Transforms the thing from what's stored in the database to a usable thing."
-   :prepare-params "Lambda of 'raw' params from ring request, to params used by inner logic. Default is identity."})
+   :prepare-params "Lambda of 'raw' params from ring request, to params used by inner logic. Default is identity."
+   :generate-new-id "0-arity non-deterministic lambda used for generating a new ID for an API record."})
 
 (def empty-api-response
   {:resp 0
@@ -93,9 +115,21 @@
 
 (defn handle-post! [api-name]
   (fn [{:keys [request] :as fn-param}]
-    (let [write-data (realize-write-data request)]
+    (let [write-data (realize-write-data request)
+          {:keys [dessicate generate-new-id]} (api-object-for api-name)
+          new-ids (take (count write-data) (repeatedly generate-new-id))
+          newly-id-writes (map (fn [new-id ent] (assoc ent :id new-id)) new-ids write-data)
+          raw-write-result (yushan.db/insert-many {:table api-name
+                                                   :transform-fn dessicate
+                                                   :thing newly-id-writes})
+          id-write-result (map
+                            (fn [the-id write-res]
+                              (if write-res the-id false))
+                            new-ids
+                            raw-write-result)]
+                        
      (println write-data)
-     {:param-ret (pr-str write-data)})))
+     {::insert-result id-write-result})))
 
 (defn wrap-api-update [api-name]
   empty-api-response)
@@ -121,7 +155,7 @@
 
 (defn handle-created [api-name]
   (fn [{:as fn-param :keys [request]}]
-    {:body (:param-ret fn-param)}))
+    {:body (::insert-result fn-param)}))
 
 (defn make-table-for-api-name [api-name]
   (let [{:keys [columns]} (api-object-for api-name)]

@@ -20,7 +20,8 @@
              :rest [:string]}
    :prepare-params lyspec/coerce-structure
    :dessicate #(yushan.api-object/standard-dessicate :entities %) 
-   :hydrate yushan.api-object/standard-hydrate})
+   :hydrate yushan.api-object/standard-hydrate
+   :generate-new-id #(yushan.api-object/standard-gen-id :entities)})
 
 (defn add-n-test-entities [n]
   (let [{:keys [dessicate hydrate]} (yushan.api-object/api-object-for :entities)]
