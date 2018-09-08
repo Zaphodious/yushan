@@ -110,6 +110,9 @@
 (defn insert-one [{:keys [table transform-fn thing] :as params}]
   (first (--access #(--insert params))))
 
+(defn insert-many [{:keys [table transform-fn thing] :as params}]
+  (--access #(map (fn [a] (--insert (into params {:thing a}))) thing)))
+
 (defn update-one [{:keys [table transform-fn thing] :as params}]
   (first (--access #(--update params))))
 

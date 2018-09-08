@@ -40,7 +40,8 @@
   :available-media-types ["application/json"]
   :allowed-methods [:get :post]
   :handle-ok (yushan.api-object/handle-ok :entities)
-  :post! (fn [a] (pr-str a)))
+  :post! (yushan.api-object/handle-post! :entities)
+  :handle-created (yushan.api-object/handle-created :entities))
 
 (defn index-handler [a]
   (assoc-in
@@ -58,10 +59,15 @@
 (defn wrap-bring-params-up [handle-fn]
   (fn [a] (handle-fn (assoc a :params [:foo :bar]))))
 
+(defn wrap-realize-buffer [wrappas]
+  (fn [a]
+    (wrappas (into a {:body (slurp (:body a))}))))
+
 (defn make-middleware []
  (-> #'route-handler                
      middleware.keyword-params/wrap-keyword-params
      middleware.params/wrap-params))
+    ;wrap-realize-buffer))
     ;(middleware.file/wrap-file "public")))
     ;middleware.content-type/wrap-content-type
     ;middleware.not-modified/wrap-not-modified))

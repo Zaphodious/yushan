@@ -5,6 +5,7 @@
               [com.blakwurm.lytek.spec :as lyspec]
               [clojure.set :as c.set]
               [clojure.edn :as edn]
+              [clojure.data.json :as json]
               [com.blakwurm.yushan.db :as yushan.db]))
 
 (defmulti api-object-for identity)
@@ -85,8 +86,16 @@
     :available-media-types ["application/json"]
     :handle-ok {:thing "badboi"}))
 
+(defn realize-write-data [request]
+  (let [the-body (json/read-str (slurp (:body request))
+                                :key-fn keyword)]
+    (or (:data the-body) the-body)))
+
 (defn handle-post! [api-name]
-  empty-api-response)
+  (fn [{:keys [request] :as fn-param}]
+    (let [write-data (realize-write-data request)]
+     (println write-data)
+     {:param-ret (pr-str write-data)})))
 
 (defn wrap-api-update [api-name]
   empty-api-response)
@@ -108,23 +117,11 @@
                               :transform-fn hydrate})
           query-result (yushan.db/read-many query-params)
           api-responso (make-api-response api-name query-result)]
-      query-result)))
+      query-result)))   
 
-(defn handle-ok-bad [api-name]
-  (fn [fn-param]
-    (let [{:keys [request]} fn-param
-          {:keys [prepare-params
-                  hydrate
-                  columns] :as api-map} (api-object-for api-name)
-          conformed-params (prepare-params (:params request))
-          [actual-params secondary-params] (split-map conformed-params
-                                                      (keys columns))
-          query-params (into secondary-params
-                             {:table-name api-name
-                              :query actual-params
-                              :transform-fn hydrate})
-          query-result (yushan.db/read-many query-params)]
-      (make-api-response api-name query-result))))   
+(defn handle-created [api-name]
+  (fn [{:as fn-param :keys [request]}]
+    {:body (:param-ret fn-param)}))
 
 (defn make-table-for-api-name [api-name]
   (let [{:keys [columns]} (api-object-for api-name)]
