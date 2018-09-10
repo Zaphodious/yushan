@@ -24,6 +24,7 @@
             [clojure.set :as se]
             [clojure.string :as string]
             [spec-coerce.core :as sc]
+            [clojure.spec.alpha :as s]
             [clojure.spec.alpha :as s]))
 
 (defn named? [a] (or (string? a) (keyword? a) (symbol? a)))
@@ -41,10 +42,10 @@
   (let [true-strings ["true" "1" "yes" "t" "y"]
         true-keys (map coerce-to-keyword true-strings)
         true-numerically [1]]
-      (-> true-strings (into true-keys) (into true-numerically))))
+    (-> true-strings (into true-keys) (into true-numerically))))
 (defn coerce-to-boolean [a]
   (if (first (filter #(= % a) ways-of-depicting-true))
-      true false))
+    true false))
 
 (def attribute-keys
   [:strength
@@ -89,7 +90,7 @@
 (def ability-strings
   (map name ability-keys))
 
-(defn not-blank? [a] 
+(defn not-blank? [a]
   (not (string/blank? a)))
 
 (s/def :lytek/id
@@ -118,13 +119,17 @@
 (sc/def :lytek/description coerce-to-string)
 
 (s/def :lytek/owner
-  string?)
+  :lytek/id)
 (sc/def :lytek/owner coerce-to-string)
+
+(s/def :lytek/property
+  :lytek/id)
+(sc/def :lytek/property coerce-to-string)
 
 (s/def :lytek/category
   #{:character
-    :rulebook
-    :castable})
+    :rulebook})
+;:castable})
 (sc/def :lytek/category coerce-to-keyword)
 
 (def solar-castes
@@ -133,6 +138,14 @@
     :eclipse
     :twilight
     :zenith})
+
+(s/def :lytek.character.solar/caste
+  solar-castes)
+
+(s/def :lytek/caste
+  keyword?)
+(sc/def :lytek/caste
+  coerce-to-keyword)
 
 (def terrestrial-aspects
   #{:wood
@@ -147,14 +160,22 @@
     :spell
     :martial-arts})
 
+(def character-types
+  #{:solar
+    :terrestrial})
+
+(def nil-type
+  #{:none})
+(def any-type
+  #{:any})
+
 (s/def :lytek/subcategory
-  (se/union
-    castable-types
-    solar-castes
-    terrestrial-aspects))
+  (se/union character-types
+            nil-type
+            any-type))
 (sc/def :lytek/subcategory coerce-to-keyword)
 
-(s/def :lytek/rank  
+(s/def :lytek/rank
   (s/int-in 0 6))
 (sc/def :lytek/rank
   coerce-to-int)
@@ -198,7 +219,7 @@
   (s/tuple :lytek/ability
            :lytek/description))
 (s/def :lytek/specialties
-  (s/coll-of :lytek/specialty))  
+  (s/coll-of :lytek/specialty))
 
 (s/def :lytek.character/charms
   (s/coll-of :lytek/name :into []))
@@ -235,7 +256,7 @@
 (s/def :lytek/motepool
   (s/int-in 0 200))
 (s/def :lytek/essence-personal
-  :lytek/motepool)         
+  :lytek/motepool)
 (s/def :lytek/essence-peripheral
   :lytek/motepool)
 (s/def :lytek/committed-personal
@@ -264,7 +285,7 @@
                            (coerce-to-string f)
                            (coerce-to-string d)]))
 (s/def :lytek/intimacies
-  (s/coll-of :lytek/intimacy :into [] :min-count 4))  
+  (s/coll-of :lytek/intimacy :into [] :min-count 4))
 
 (s/def :lytek/merit
   (s/tuple :lytek/name :lytek/rank :lytek/description))
@@ -290,7 +311,7 @@
 (sc/def :lytek/cost
   coerce-to-string)
 
-(s/def :lytek.rulebook.charm/keyword
+(s/def :lytek.castable/keyword
   #{:aggravated
     :bridge
     :clash
@@ -306,11 +327,16 @@
     :uniform
     :withering-only
     :written-only})
-(sc/def :lytek.rulebook.charm/keyword
+(sc/def :lytek.castable/keyword
+  coerce-to-keyword)
+(sc/def :lytek/keyword
   coerce-to-keyword)
 
-(s/def :lytek/charm-keywords
-  (s/coll-of :lytek.rulebook.charm/keyword :into #{}))
+(s/def :lytek.castable/keywords
+  (s/coll-of :lytek.castable/keyword :into #{}))
+(sc/def :lytek/keywords
+  (fn [a] (into #{} (map coerce-to-keyword a))))
+
 
 (s/def :lytek/prerequisites
   (s/coll-of :lytek/name :into #{}))
@@ -327,19 +353,8 @@
 (sc/def :lytek/page
   coerce-to-int)
 
-(s/def :lytek/rulebook-charm
-  (s/keys :req-un [:lytek/name
-                   :lytek/description
-                   :lytek/ability
-                   :lytek/rank
-                   :lytek/essence-rating
-                   :lytek/page
-                   :lytek/charm-type
-                   :lytek/duration
-                   :lytek/cost
-                   :lytek/prerequisites
-                   :lytek/charm-keywords]
-          :opt-un [:lytek/from-artifact]))
+(s/def :lytek/castables
+  (s/coll-of :lytek/id))
 
 (def sorcery-circles
   #{:terrestrial
@@ -348,31 +363,23 @@
     :shadowlands
     :labyrinth
     :void})
-(s/def :lytek/sorcery-circle
+(s/def :lytek.sorcery/circle
   sorcery-circles)
+(sc/def :lytek/circle
+  coerce-to-keyword)
 
-
-(s/def :lytek/castable
-  (s/and
-    (s/merge :lytek/entity
-             (s/keys :req-un [:lytek/cost
-                              :lytek/duration
-                              :lytek/page
-                              :lytek/prerequisites
-                              :lytek/charm-keywords]
-                     :opt-un [:lytek/ability
-                              :lytek/from-artifact
-                              :lytek/sorcery-circle]))
-    #(= (:category %) :castable)
-    #(contains? castable-types (:subcategory %))))
-
-(s/def :lytek/rulebook-charms
-  (s/coll-of :lytek/rulebook-charm))
+(s/def :lytek/rulebook-id
+  :lytek/id)
 
 (s/def :lytek/repurchasable
   boolean?)
 (sc/def :lytek/repurchasable
   coerce-to-boolean)
+
+(s/def :lytek/dots
+  (s/int-in 1 6))
+(sc/def :lytek/dots
+  coerce-to-int)
 
 (s/def :lytek/merit-type
   #{:innate
@@ -389,29 +396,31 @@
 (s/def :lytek/grants-merits
   (s/coll-of :lytek/name :into []))
 
-(s/def :lytek/rulebook-merit
+(s/def :lytek/named
   (s/keys :req-un [:lytek/name
-                   :lytek/description
-                   :lytek/page
-                   :lytek/grants-merits
-                   :lytek/repurchasable
-                   :lytek/merit-type
-                   :lytek/available-ranks]))
+                   :lytek/description]))
 
-(s/def :lytek/rulebook-merits
-  (s/coll-of :lytek/rulebook-merit :into []))
+(defmulti entity-category :category)
+(defmulti rule-type :subcategory)
+(defmulti character-type :subcategory)
+(defmulti castable-type :variation)
+
+(sc/def :lytek/variation
+  coerce-to-keyword)
+(sc/def :lytek/category
+  coerce-to-keyword)
 
 (s/def :lytek/entity
-    (s/keys :req-un [:lytek/id
-                     :lytek/category
-                     :lytek/subcategory
-                     :lytek/name
-                     :lytek/description]))
+  (s/merge (s/keys :req-un [:lytek/id])
+           :lytek/named
+           (s/multi-spec entity-category :category)))
 
+(defmethod entity-category :rulebook [_]
+  (s/keys :req-un []))
 
 (s/def :lytek/combatant
-  (s/merge :lytek/entity
-           :lytek/healthy
+  (s/merge :lytek/healthy
+           :lytek/named
            (s/keys :req-un [:lytek/attributes
                             :lytek/abilities
                             :lytek/additional-abilities
@@ -419,48 +428,105 @@
                             :lytek/willpower-temporary
                             :lytek/intimacies])))
 
-(s/def :lytek/character
-  (s/and
-    (s/merge :lytek/combatant
-             (s/keys :req-un [:lytek/subcategory
-                              :lytek/anima
-                              :lytek/rulebooks
-                              :lytek.character/charms
-                              :lytek/owner
-                              :lytek/merits]
-                     :opt-un [:lytek/background
-                              :lytek/title]))
-    #(= (:category %) :character)))
+(defmethod entity-category :character [_]
+  (s/merge :lytek/combatant
+           (s/keys :req-un [:lytek/rulebooks])
+           (s/multi-spec character-type :subcategory)))
 
 (s/def :lytek/enlightened
-  (s/merge :lytek/character
-           (s/keys :req-un [:lytek/essence-rating
-                            :lytek/essence-personal
-                            :lytek/essence-peripheral
-                            :lytek/committed-personal
-                            :lytek/committed-peripheral])))
+  (s/keys :req-un [:lytek/essence-rating
+                   :lytek/essence-personal
+                   :lytek/essence-peripheral
+                   :lytek/committed-personal
+                   :lytek/committed-peripheral]))
+
+(defn character-type-of [chartype]
+  (s/and :lytek/entity
+         #(= chartype (:subcategory %))))
+
+(defmethod character-type :solar [_]
+  (s/merge :lytek/enlightened
+           :lytek/combatant
+           (s/keys :req-un [:lytek/anima
+                            :lytek.character.solar/caste
+                            :lytek/supernal
+                            :lytek/favored-abilities
+                            :lytek/limit-accrued
+                            :lytek/limit-trigger])))
 
 (s/def :lytek/solar
-  (s/and
-    (s/merge :lytek/enlightened
-             (s/keys :req-un [:lytek/limit-trigger
-                              :lytek/limit-accrued
-                              :lytek/supernal
-                              :lytek/favored-abilities]))
-    #(contains? solar-castes (:subcategory %))))
+  (character-type-of :solar))
 
-(s/def :lytek/rulebook
-  (s/and
-    (s/merge :lytek/entity
-             (s/keys :req-un [:lytek/rulebook-charms
-                              :lytek/rulebook-merits]))
-    #(= (:category %) :rulebook)))
+(defmethod entity-category :rule [_]
+  (s/merge :lytek/named
+           (s/multi-spec rule-type :subcategory)
+           (s/keys :req-un [:lytek/description])))
 
-(defn get-applicable-spec-pre-coersion [{:as entity :keys [category subcategory]}]
-  (cond
-    (= category :character) (cond
-                              (contains? solar-castes subcategory) :lytek/solar
-                              (contains? terrestrial-aspects subcategory) :lytek/terrestrial
-                              :else :lytek/character)
-    (= category :rulebook) :lytek/rulebook
-    :else :lytek/entity))
+(defmethod rule-type :castable [_]
+  (s/merge :lytek/named
+           (s/multi-spec castable-type :variation)
+           (s/keys :req-un [:lytek/cost
+                            :lytek/duration
+                            :lytek/page
+                            :lytek/prerequisites
+                            :lytek.castable/keywords])))
+
+(defmethod castable-type :charm [_]
+  (s/keys :req-un [:lytek/ability]))
+
+(defmethod castable-type :evocation [_]
+  (s/keys :req-un [:lytek/from-artifact]))
+
+(defmethod castable-type :spell [_]
+  (s/keys :req-un [:lytek.sorcery/circle]))
+(defmethod rule-type :merit [_]
+  (s/merge :lytek/named
+           (s/keys :req-un [:lytek/grants-merits
+                            :lytek/repurchasable
+                            :lytek/merit-type
+                            :lytek/available-ranks])))
+
+(defmethod rule-type :artifact [_]
+  (s/keys :req-un [:lytek/dots]))
+(defmethod rule-type :mortal-equipment [_]
+  (s/keys :req-un []))
+
+#_(defn get-applicable-spec-pre-coersion [{:as entity :keys [category subcategory]}]
+    (cond
+      (= category :character) (cond
+                                (contains? solar-castes subcategory) :lytek/solar
+                                (contains? terrestrial-aspects subcategory) :lytek/terrestrial
+                                :else :lytek/character)
+      (= category :rulebook) :lytek/rulebook
+      :else :lytek/entity))
+
+(s/def :lytek/relationship
+  (s/keys :req-un [:lytek/id :lytek/owner :lytek/property]))
+
+(s/def :lytek/count
+  number?)
+(sc/def :lytek/count
+  coerce-to-int)
+
+(defn map->lytek-map [mappo]
+  (into {}
+        (map
+          (fn [[k v]]
+            {(if (qualified-keyword? k)
+               k
+               (keyword "lytek" (name k)))
+             v})
+          mappo)))
+
+(defn lytek-map->map [lymappo]
+  (into {}
+        (map
+          (fn [[k v]]
+            {(keyword (name k)) v})
+          lymappo)))
+
+(defn coerce-structure [structure]
+    (-> structure
+        map->lytek-map
+        sc/coerce-structure
+        lytek-map->map))

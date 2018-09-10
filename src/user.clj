@@ -1,9 +1,12 @@
 (ns user
   (:require [clojure.tools.nrepl.server :as nrepl]
             [com.blakwurm.yushan.core :as yushan]
-            [dev]
-            [clojure.tools.namespace.repl :as namespace.repl]))
-
+            [clojure.tools.namespace.repl :as namespace.repl]
+            [dev]))
+(defn jack []
+  (require 'com.blakwurm.yushan.core)
+  (in-ns 'com.blakwurm.yushan.core)
+  :loaded)
 
 (defn go
   "Load and switch to the 'dev' namespace."
@@ -14,10 +17,6 @@
   (in-ns 'com.blakwurm.yushan.core)
   :loaded)
 
-(defn plugin
-  "Load and switch to the 'dev' namespace."
-  []
-  (yushan/start-server)
-  (require 'com.blakwurm.yushan.core)
-  (in-ns 'com.blakwurm.yushan.core)
-  :loaded)
+  
+(defn -main [& args]
+  (dev/start-nrepl))

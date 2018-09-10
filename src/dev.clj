@@ -32,6 +32,9 @@
   (do
     (start-server)))
 
+(defn start-cider []
+  (nrepl/start-server :port 4242 :handler (cider-handler))) 
+
 (defn reset []
   (do
     (stop-server)
