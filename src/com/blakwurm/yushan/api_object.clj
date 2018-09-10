@@ -112,7 +112,8 @@
    :generate-new-id #(standard-gen-id :sample)
    :validation-spec any?
    :validation-coersion lyspec/coerce-structure
-   :validation-determine #(standard-validation-determine :sample %)})         
+   :validation-determine #(standard-validation-determine :sample %)         
+   :delete-safe-key :name})
 
 (def sample-api-def-doc
   {:name "A keyword denoting the resource's name."
@@ -123,7 +124,23 @@
    :generate-new-id "0-arity non-deterministic lambda used for generating a new ID for an API record."
    :validation-spec "A clojure.spec that will be used to validate data before it touches the database"
    :validation-coersion "A lambda that coerses the types in a structure to be appropriate for validation. Necessary, as conversion from edn to json is inherently lossy."
-   :validation-determine "A lambda that determines if a given thing is a valid 'thing'"})
+   :validation-determine "A lambda that determines if a given thing is a valid 'thing'"
+   :delete-safe-key "A field key to be checked before deletion. Both ID and this field must match before a deletion happens."})
+
+(defn make-standard-api-object-for [new-api-name]
+  {:name new-api-name
+   :columns {:name [:string]
+             :id [:string :primary :key]
+             :description [:string]
+             :rest [:string]}
+   :prepare-params #(standard-prepare-params new-api-name %)
+   :dessicate #(standard-dessicate new-api-name %) 
+   :hydrate #(standard-hydrate new-api-name %)
+   :generate-new-id #(standard-gen-id new-api-name)
+   :validation-spec any?
+   :validation-coersion lyspec/coerce-structure
+   :validation-determine #(standard-validation-determine new-api-name %)
+   :delete-safe-key :name})
 
 (def empty-api-response
   {:resp 0
@@ -199,13 +216,15 @@
                            merged-data)]
        {::updated-ids update-results})))
 
-(defn handle-delete! [api-name]
+(defn handle-delete!
+  "Returns a function that ONLY deletes a record if both the ID and the delete-safe-key match the existant record"
+  [api-name]
   (fn [{:keys [request] :as fn-param}]
-     (let [{:keys [prepare-params hydrate]} (api-object-for api-name)
+     (let [{:keys [prepare-params hydrate delete-safe-key]} (api-object-for api-name)
            params (prepare-params (:params request ()))
            entity-to-be-deleted (yushan.db/read-one
                                   {:table api-name
-                                   :query {:name (or (:name params) "")
+                                   :query {delete-safe-key (or (delete-safe-key params) "")
                                            :id   (or (:id params) "")}
                                    :transform-fn hydrate})
            delete-result (when entity-to-be-deleted

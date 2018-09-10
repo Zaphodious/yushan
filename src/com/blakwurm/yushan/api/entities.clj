@@ -10,21 +10,17 @@
   
 
 (defmethod yushan.api-object/api-object-for :entities [_]
-  {:name :entities
-   :columns {:name [:string]
-             :id [:string :primary :key]
-             :description [:string]
-             :category [:string]
-             :subcategory [:string]
-             :variation [:string]
-             :rest [:string]}
-   :prepare-params #(yushan.api-object/standard-prepare-params :entities %)
-   :dessicate #(yushan.api-object/standard-dessicate :entities %) 
-   :hydrate #(yushan.api-object/standard-hydrate :entities %)
-   :generate-new-id #(yushan.api-object/standard-gen-id :entities)
-   :validation-spec :lytek/entity
-   :validation-coersion lyspec/coerce-structure
-   :validation-determine #(yushan.api-object/standard-validation-determine :entities %)})
+  (merge
+   (yushan.api-object/make-standard-api-object-for :entities)
+   {:columns {:name [:string]
+              :id [:string :primary :key]
+              :description [:string]
+              :category [:string]
+              :subcategory [:string]
+              :variation [:string]
+              :rest [:string]}
+    :validation-spec :lytek/entity
+    :delete-safe-key :name}))
 
 (defn add-n-test-entities [n]
   (let [{:keys [dessicate hydrate generate-new-id]} (yushan.api-object/api-object-for :entities)]
