@@ -396,9 +396,13 @@
 (defmulti character-type :subcategory)
 (defmulti castable-type :variation)
 
+(sc/def :lytek/variation
+  coerce-to-keyword)
+(sc/def :lytek/category
+  coerce-to-keyword)
+
 (s/def :lytek/entity
-  (s/merge (s/keys :req-un [:lytek/id
-                            :lytek/owner])
+  (s/merge (s/keys :req-un [:lytek/id])
            :lytek/named
            (s/multi-spec entity-category :category)))
 
@@ -439,8 +443,7 @@
                             :lytek/supernal
                             :lytek/favored-abilities
                             :lytek/limit-accrued
-                            :lytek/limit-trigger
-                            :lytek/merits])))
+                            :lytek/limit-trigger])))
 
 (s/def :lytek/solar
   (character-type-of :solar))
@@ -448,7 +451,7 @@
 (defmethod entity-category :rule [_]
   (s/merge :lytek/named
            (s/multi-spec rule-type :subcategory)
-           (s/keys :req-un [])))
+           (s/keys :req-un [:lytek/description])))
 
 (defmethod rule-type :castable [_]
   (s/merge :lytek/named
@@ -486,7 +489,10 @@
 (s/def :lytek/ownership
   (s/tuple :lytek/id :lytek/id))
 
-
+(s/def :lytek/count
+  number?)
+(sc/def :lytek/count
+  coerce-to-int)
 
 (defn map->lytek-map [mappo]
   (into {}

@@ -24,9 +24,15 @@
                                                      (set split-keys)))]
     [inclusive-m exclusive-m]))
 (defn determine-api-response-code [seq-of-things]
-  (let [db-ops-didnt-succeed (false? (first (filter false? seq-of-things)))]
+  (let [db-ops-didnt-succeed (not (= (count seq-of-things)
+                                     (count (filter identity seq-of-things))))
+        set-of-things (set seq-of-things)
+        error-exists? (fn [error-key] (contains? set-of-things error-key))]
     (cond
-      db-ops-didnt-succeed 1
+      (error-exists? ::write-failed) [3 "Some things not written"]
+      (error-exists? ::spec-failed) [2 "Some things not valid"]
+      (error-exists? nil) [1 "Some Things Not Found"]
+      (error-exists? false) [1 "Some Things Not Found"]
       :default [0 ""])))
 
 (defn make-api-response [api-name seq-of-things]
@@ -37,17 +43,32 @@
    (let [{:keys [hydrate] :as api-map} (api-object-for api-name)
          [resp-code error-message] (determine-api-response-code seq-of-things)]
      {:resp resp-code
-      :data (map hydrate seq-of-things)
+      :data (map (fn [a] 
+                   (if (map? a)
+                    (hydrate a) 
+                    a))
+                 seq-of-things)
       :error error-message})))
+
+(defn stringify-keyword-values [mappo]
+  (when (map? mappo)
+    (into {}
+      (map (fn [[k v]]
+             [k (if (keyword? v)
+                    (name v)
+                    v)])
+           mappo))))
 
 (defn standard-dessicate [api-name thing]
   (let [{:keys [columns] :as api-map} (api-object-for api-name)
         column-names (map first columns)
         [slim-map rest-map] (split-map thing column-names)
-        store-map (assoc slim-map :rest (pr-str rest-map))]
+        stringered-slim-map (stringify-keyword-values slim-map)
+        store-map (assoc stringered-slim-map :rest (pr-str rest-map))]
+    (println stringered-slim-map)
     store-map)) 
                       
-(defn standard-hydrate [thing]
+(defn standard-hydrate [api-name thing]
   (let [the-rest (:rest thing)
         thing-without-rest (dissoc thing :rest)
         hydrated-rest (edn/read-string the-rest)]
@@ -71,6 +92,13 @@
       subrando))
         
 
+(defn standard-validation-determine [api-name thing]
+  (let [{:keys [validation-spec validation-spec validation-coersion]} (api-object-for api-name)]
+     (when thing (->> thing validation-coersion (s/valid? validation-spec)))))
+
+(defn standard-prepare-params [api-name params]
+  (->> params lyspec/coerce-structure stringify-keyword-values))
+
 (defmethod api-object-for :sample [_]
   {:name :sample
    :columns {:name [:string]
@@ -78,9 +106,12 @@
              :description [:string]
              :rest [:string]}
    :dessicate #(standard-dessicate :sample %)
-   :hydrate standard-hydrate 
-   :prepare-params lyspec/coerce-structure
-   :generate-new-id #(standard-gen-id :sample)})
+   :hydrate #(standard-hydrate :sample %) 
+   :prepare-params #(standard-prepare-params :sample %)
+   :generate-new-id #(standard-gen-id :sample)
+   :validation-spec any?
+   :validation-coersion lyspec/coerce-structure
+   :validation-determine #(standard-validation-determine :sample %)})         
 
 (def sample-api-def-doc
   {:name "A keyword denoting the resource's name."
@@ -88,7 +119,10 @@
    :dessicate "Lambda of thing to stored-thing. Transforms the thing for storage in the database."
    :hydrate "Lambda of stored-thing to thing. Transforms the thing from what's stored in the database to a usable thing."
    :prepare-params "Lambda of 'raw' params from ring request, to params used by inner logic. Default is identity."
-   :generate-new-id "0-arity non-deterministic lambda used for generating a new ID for an API record."})
+   :generate-new-id "0-arity non-deterministic lambda used for generating a new ID for an API record."
+   :validation-spec "A clojure.spec that will be used to validate data before it touches the database"
+   :validation-coersion "A lambda that coerses the types in a structure to be appropriate for validation. Necessary, as conversion from edn to json is inherently lossy."
+   :validation-determine "A lambda that determines if a given thing is a valid 'thing'"})
 
 (def empty-api-response
   {:resp 0
@@ -131,9 +165,45 @@
      (println write-data)
      {::insert-result id-write-result})))
 
-(defn handle-ok [api-name]
-  (fn [{:as fn-param :keys [request]}]
-    (let [{:keys [prepare-params hydrate columns]} (api-object-for api-name)  
+(defn handle-put! [api-name]
+  (fn [{:keys [request] :as fn-param}]
+     (let [update-data (realize-write-data request)
+           {:keys [prepare-params hydrate columns validation-coersion validation-spec validation-determine dessicate]} (api-object-for api-name)  
+           existant-data (map (fn [{:keys [id] :as thing}]
+                                 (yushan.db/read-one {:table api-name
+                                                      :transform-fn hydrate
+                                                      :query {:id id}}))
+                              update-data)
+           merged-data (map (fn [map-existant map-update]
+                               (when map-existant
+                                 (merge map-existant map-update)))
+                            existant-data update-data)
+           valid-data  (map (fn [a]
+                              (if (validation-determine a)
+                                a
+                                ::spec-failed))
+                            merged-data)
+           validated-data (map validation-determine 
+                               merged-data)
+           update-results (map (fn [thing]
+                                 (if (and thing (not (= thing ::spec-failed)))
+                                    (if (yushan.db/update-one {:table api-name
+                                                               :transform-fn dessicate
+                                                               :thing thing})
+                                       (:id thing))
+                                   thing))
+                            valid-data)
+           debug-explain (map (fn [a] (->> a validation-coersion (s/explain-str validation-spec)))
+                           merged-data)]
+       {::updated-ids update-results})))
+        
+
+(defn handle-ok-updated [api-name {:keys [request] :as fn-param}]
+    (make-api-response api-name (::updated-ids fn-param)))
+
+(defn handle-ok-query [api-name {:as fn-param :keys [request updated-ids]}]
+    (let [
+          {:keys [prepare-params hydrate columns]} (api-object-for api-name)  
           conformed-params (prepare-params (:params request))
           [actual-p secondary-p] (split-map conformed-params (keys columns))
           query-params (into secondary-p
@@ -142,11 +212,26 @@
                               :transform-fn hydrate})
           query-result (yushan.db/read-many query-params)
           api-responso (make-api-response api-name query-result)]
-      query-result)))   
+      query-result))   
+
+(defn handle-ok [api-name]
+  (fn [{:as fn-param :keys [request]}]
+    (if (::updated-ids fn-param)
+      (handle-ok-updated api-name fn-param)
+      (handle-ok-query api-name fn-param))))
+     
 
 (defn handle-created [api-name]
   (fn [{:as fn-param :keys [request]}]
-    {:body (::insert-result fn-param)}))
+    (make-api-response api-name (::insert-result fn-param))))
+
+(defn determine-new [api-name]
+  (fn [{:as fn-param :keys [request]}]
+    (::insert-result fn-param)))
+
+(defn handle-no-content [api-name]
+  (fn [a]
+    empty-api-response))
 
 (defn make-table-for-api-name [api-name]
   (let [{:keys [columns]} (api-object-for api-name)]

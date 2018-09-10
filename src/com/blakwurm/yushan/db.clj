@@ -42,6 +42,7 @@
         where-map (if (empty? query)
                     {}
                     {:where query-vec})]
+    (println "count is " count)
     (honey/format (into no-where-map where-map))))
 
 (defn --access
@@ -108,7 +109,8 @@
   (first (read-many (assoc params :page 0 :count 1))))
 
 (defn insert-one [{:keys [table transform-fn thing] :as params}]
-  (first (--access #(--insert params))))
+  (let [result (--access #(--insert params))]
+    (if result (first result) result)))
 
 (defn insert-many [{:keys [table transform-fn thing] :as params}]
   (--access #(map (fn [a] (--insert (into params {:thing a}))) thing)))

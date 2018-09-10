@@ -18,14 +18,17 @@
              :subcategory [:string]
              :variation [:string]
              :rest [:string]}
-   :prepare-params lyspec/coerce-structure
+   :prepare-params #(yushan.api-object/standard-prepare-params :entities %)
    :dessicate #(yushan.api-object/standard-dessicate :entities %) 
-   :hydrate yushan.api-object/standard-hydrate
-   :generate-new-id #(yushan.api-object/standard-gen-id :entities)})
+   :hydrate #(yushan.api-object/standard-hydrate :entities %)
+   :generate-new-id #(yushan.api-object/standard-gen-id :entities)
+   :validation-spec :lytek/entity
+   :validation-coersion lyspec/coerce-structure
+   :validation-determine #(yushan.api-object/standard-validation-determine :entities %)})
 
 (defn add-n-test-entities [n]
   (let [{:keys [dessicate hydrate generate-new-id]} (yushan.api-object/api-object-for :entities)]
-    (yushan.api-object/make-table-for-api-name :entities)
+   ;(yushan.api-object/make-table-for-api-name :entities)
     (map (fn [a]
           (yushan.db/insert-one {:table :entities
                                  :transform-fn dessicate
