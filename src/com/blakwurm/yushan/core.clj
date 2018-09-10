@@ -38,10 +38,11 @@
 
 (defresource api-object
   :available-media-types ["application/json"]
-  :allowed-methods [:get :post :put]
+  :allowed-methods [:get :post :put :delete]
   :handle-ok (yushan.api-object/handle-ok :entities)
   :post! (yushan.api-object/handle-post! :entities)
   :put! (yushan.api-object/handle-put! :entities)
+  :delete! (yushan.api-object/handle-delete! :entities)
   :handle-created (yushan.api-object/handle-created :entities)
   :handle-no-content (yushan.api-object/handle-no-content :entities)
   :new? (yushan.api-object/determine-new :entities)

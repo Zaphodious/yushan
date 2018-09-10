@@ -31,6 +31,7 @@
     (cond
       (error-exists? ::write-failed) [3 "Some things not written"]
       (error-exists? ::spec-failed) [2 "Some things not valid"]
+      (error-exists? ::delete-failed) [4 "No Delete Happened"]
       (error-exists? nil) [1 "Some Things Not Found"]
       (error-exists? false) [1 "Some Things Not Found"]
       :default [0 ""])))
@@ -150,9 +151,10 @@
 (defn handle-post! [api-name]
   (fn [{:keys [request] :as fn-param}]
     (let [write-data (realize-write-data request)
-          {:keys [dessicate generate-new-id]} (api-object-for api-name)
+          {:keys [dessicate generate-new-id validation-determine]} (api-object-for api-name)
           new-ids (take (count write-data) (repeatedly generate-new-id))
-          newly-id-writes (map (fn [new-id ent] (assoc ent :id new-id)) new-ids write-data)
+          validated-writes (map validation-determine write-data)
+          newly-id-writes (map (fn [new-id ent] (if (map? ent) (assoc ent :id new-id) ent) new-ids write-data))
           raw-write-result (yushan.db/insert-many {:table api-name
                                                    :transform-fn dessicate
                                                    :thing newly-id-writes})
@@ -196,10 +198,29 @@
            debug-explain (map (fn [a] (->> a validation-coersion (s/explain-str validation-spec)))
                            merged-data)]
        {::updated-ids update-results})))
-        
+
+(defn handle-delete! [api-name]
+  (fn [{:keys [request] :as fn-param}]
+     (let [{:keys [prepare-params hydrate]} (api-object-for api-name)
+           params (prepare-params (:params request ()))
+           entity-to-be-deleted (yushan.db/read-one
+                                  {:table api-name
+                                   :query {:name (or (:name params) "")
+                                           :id   (or (:id params) "")}
+                                   :transform-fn hydrate})
+           delete-result (when entity-to-be-deleted
+                           (yushan.db/delete-one {:table api-name
+                                                  :id (:id params)}))]
+        {::delete-result (if delete-result
+                           (:id params)
+                           ::delete-failed)})))
+                           
 
 (defn handle-ok-updated [api-name {:keys [request] :as fn-param}]
     (make-api-response api-name (::updated-ids fn-param)))
+
+(defn handle-ok-deleted [api-name {:keys [request] :as fn-param}]
+  (make-api-response api-name [(::delete-result fn-param)]))
 
 (defn handle-ok-query [api-name {:as fn-param :keys [request updated-ids]}]
     (let [
@@ -212,13 +233,15 @@
                               :transform-fn hydrate})
           query-result (yushan.db/read-many query-params)
           api-responso (make-api-response api-name query-result)]
-      query-result))   
+      (make-api-response api-name query-result)))   
 
 (defn handle-ok [api-name]
   (fn [{:as fn-param :keys [request]}]
-    (if (::updated-ids fn-param)
-      (handle-ok-updated api-name fn-param)
-      (handle-ok-query api-name fn-param))))
+    (let [handle-fn (cond
+                      (::updated-ids fn-param) handle-ok-updated
+                      (::delete-result fn-param) handle-ok-deleted
+                      :default handle-ok-query)]
+      (handle-fn api-name fn-param))))
      
 
 (defn handle-created [api-name]
