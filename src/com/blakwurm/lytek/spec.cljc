@@ -122,6 +122,10 @@
   :lytek/id)
 (sc/def :lytek/owner coerce-to-string)
 
+(s/def :lytek/property
+  :lytek/id)
+(sc/def :lytek/property coerce-to-string)
+
 (s/def :lytek/category
   #{:character
     :rulebook})
@@ -488,6 +492,11 @@
 
 (s/def :lytek/ownership
   (s/tuple :lytek/id :lytek/id))
+
+
+
+(s/def :lytek/relationship
+  (s/keys :req-un [:lytek/id :lytek/owner :lytek/property]))
 
 (s/def :lytek/count
   number?)

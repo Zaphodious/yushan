@@ -36,7 +36,7 @@
 (defn simple-handler [a]
   (res/response {:stringified-request (give-a-thing a)}))
 
-(defresource api-object
+(defresource entity-api-object
   :available-media-types ["application/json"]
   :allowed-methods [:get :post :put :delete]
   :handle-ok (yushan.api-object/handle-ok :entities)
@@ -48,6 +48,18 @@
   :new? (yushan.api-object/determine-new :entities)
   :respond-with-entity? (fn [a] true))
 
+(defresource relationship-api-object
+  :available-media-types ["application/json"]
+  :allowed-methods [:get :post :put :delete]
+  :handle-ok (yushan.api-object/handle-ok :relationships)
+  :post! (yushan.api-object/handle-post! :relationships)
+  :put! (yushan.api-object/handle-put! :relationships)
+  :delete! (yushan.api-object/handle-delete! :relationships)
+  :handle-created (yushan.api-object/handle-created :relationships)
+  :handle-no-content (yushan.api-object/handle-no-content :relationships)
+  :new? (yushan.api-object/determine-new :relationships)
+  :respond-with-entity? (fn [a] true))
+
 (defn index-handler [a]
   (assoc-in
     (res/file-response "public/index.html")
@@ -56,7 +68,8 @@
 
 (def routes
   ["/" {"thing" #'simple-handler
-        "api" {"/entities" {"/v1" #'api-object}}}])
+        "api" {"/entities" {"/v1" #'entity-api-object}
+               "/relationships" {"/v1" #'relationship-api-object}}}])
 
 (def route-handler
   (bidi.ring/make-handler routes))
