@@ -488,7 +488,7 @@
 
 (defmethod rule-type :artifact [_]
   (s/keys :req-un [:lytek/dots]))
-(defmethod rule-type :mortal-equipment [_]
+(defmethod rule-type  [_]
   (s/keys :req-un []))
 
 #_(defn get-applicable-spec-pre-coersion [{:as entity :keys [category subcategory]}]
