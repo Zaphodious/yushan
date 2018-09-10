@@ -376,6 +376,11 @@
 (sc/def :lytek/repurchasable
   coerce-to-boolean)
 
+(s/def :lytek/dots
+  (s/int-in 1 6))
+(sc/def :lytek/dots
+  coerce-to-int)
+
 (s/def :lytek/merit-type
   #{:innate
     :purchased
@@ -481,6 +486,9 @@
                             :lytek/merit-type
                             :lytek/available-ranks])))
 
+(defmethod rule-type :artifact [_]
+  (s/keys :req-un [:lytek/dots]))
+
 #_(defn get-applicable-spec-pre-coersion [{:as entity :keys [category subcategory]}]
     (cond
       (= category :character) (cond
@@ -489,11 +497,6 @@
                                 :else :lytek/character)
       (= category :rulebook) :lytek/rulebook
       :else :lytek/entity))
-
-(s/def :lytek/ownership
-  (s/tuple :lytek/id :lytek/id))
-
-
 
 (s/def :lytek/relationship
   (s/keys :req-un [:lytek/id :lytek/owner :lytek/property]))

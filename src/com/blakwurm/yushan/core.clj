@@ -25,7 +25,9 @@
             [liberator.core :as liberator :refer [resource defresource]]
             [clojure.tools.namespace.repl :as namespace.repl]
             [com.blakwurm.yushan.api-object :as yushan.api-object]
-            [com.blakwurm.yushan.api.entities]))
+            [com.blakwurm.yushan.api.entities]
+            [com.blakwurm.yushan.api.relationships]))
+            
 
 (defn give-a-thing [request]
   (pr-str (yushan.api-object/find-params :sample request)))
