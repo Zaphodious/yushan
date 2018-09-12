@@ -11,6 +11,8 @@
    {:columns {:id [:string :primary :key]
               :owner [:string]
               :property [:string]
+              :rank [:number]
+              :description [:string]
               :rest [:string]}
     :validation-spec :lytek/relationship
     :delete-safe-key :owner}))

@@ -70,8 +70,8 @@
 
 (def routes
   ["/" {"thing" #'simple-handler
-        "api" {"/entities" {"/v1" #'entity-api-object}
-               "/relationships" {"/v1" #'relationship-api-object}}}])
+        "api" {"/entities" {"/publius" {"/v1" #'entity-api-object}}
+               "/relationships" {"/publius" {"/v1" #'relationship-api-object}}}}])
 
 (def route-handler
   (bidi.ring/make-handler routes))
