@@ -376,11 +376,6 @@
 (sc/def :lytek/repurchasable
   coerce-to-boolean)
 
-(s/def :lytek/dots
-  (s/int-in 1 6))
-(sc/def :lytek/dots
-  coerce-to-int)
-
 (s/def :lytek/merit-type
   #{:innate
     :purchased
@@ -404,6 +399,7 @@
 (defmulti rule-type :subcategory)
 (defmulti character-type :subcategory)
 (defmulti castable-type :variation)
+(defmulti item-type :variation)
 
 (sc/def :lytek/variation
   coerce-to-keyword)
@@ -486,10 +482,31 @@
                             :lytek/merit-type
                             :lytek/available-ranks])))
 
-(defmethod rule-type :artifact [_]
-  (s/keys :req-un [:lytek/dots]))
-(defmethod rule-type  [_]
-  (s/keys :req-un []))
+(s/def :lytek/weight
+  #{:light :medium :heavy})
+(sc/def :lytek/weight
+  coerce-to-keyword)
+
+(s/def :lytek/tag
+  keyword?)
+(sc/def :lytek/tag
+  coerce-to-keyword)
+(s/def :lytek/tags
+  (s/coll-of :lytek/tag))
+
+(defmethod rule-type :item [_]
+  (s/merge :lytek/named
+           (s/multi-spec item-type :variation)
+           (s/keys :req-un [:lytek/rank])))
+            
+                   
+(defmethod item-type :weapon [_]
+  (s/keys :req-un [:lytek/weight
+                   :lytek/tags]))
+
+(defmethod item-type :armor [_]
+  (s/keys :req-un [:lytek/weight
+                   :lytek/tags]))
 
 #_(defn get-applicable-spec-pre-coersion [{:as entity :keys [category subcategory]}]
     (cond
@@ -501,7 +518,8 @@
       :else :lytek/entity))
 
 (s/def :lytek/relationship
-  (s/keys :req-un [:lytek/id :lytek/owner :lytek/property]))
+  (s/keys :req-un [:lytek/id :lytek/owner :lytek/property]
+          :opt-un [:lytek/description :lytek/rank]))
 
 (s/def :lytek/count
   number?)
