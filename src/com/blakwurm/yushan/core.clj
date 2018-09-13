@@ -1,80 +1,24 @@
 (ns com.blakwurm.yushan.core
-    (:require [yada.yada :as yada]
-            [yada.resources.file-resource :as yada.file]
-            [bidi.bidi :as bidi]
+    (:require 
             [org.httpkit.server :as httpkit-server :only [run-server]]
-            [bidi.ring]
             [ring.middleware.keyword-params :as middleware.keyword-params]
             [ring.middleware.params :as middleware.params]
             [ring.middleware.content-type :as middleware.content-type]
             [ring.middleware.not-modified :as middleware.not-modified]
             [ring.middleware.file :as middleware.file]
             [ring.middleware.resource :as middleware.resource]
-            [schema.core :as schema]
             [clojure.test.check.generators]
             [ring.util.response :as res]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
-            [com.blakwurm.lytek.spec :as lyspec]
-            [clojure.java.jdbc :as jdbc]
             [clojure.string :as str]
             [clojure.core.async :as async]
-            [honeysql.core :as hsql]
             [honeysql.helpers :as hsql.help]
             [spec-coerce.core :as sc]
-            [liberator.core :as liberator :refer [resource defresource]]
             [clojure.tools.namespace.repl :as namespace.repl]
-            [com.blakwurm.yushan.api-object :as yushan.api-object]
-            [com.blakwurm.yushan.api.entities]
-            [com.blakwurm.yushan.api.relationships]))
+            [com.blakwurm.yushan.routes :as routes]))
             
 
-(defn give-a-thing [request]
-  (pr-str (yushan.api-object/find-params :sample request)))
-
-;; In order to dev quickly, we abuse clojure's var system.
-;; The following weirdness is written this way so that
-;; we don't have to restart the server after every change. 
-(defn simple-handler [a]
-  (res/response {:stringified-request (give-a-thing a)}))
-
-(defresource entity-api-object
-  :available-media-types ["application/json"]
-  :allowed-methods [:get :post :put :delete]
-  :handle-ok (yushan.api-object/handle-ok :entities)
-  :post! (yushan.api-object/handle-post! :entities)
-  :put! (yushan.api-object/handle-put! :entities)
-  :delete! (yushan.api-object/handle-delete! :entities)
-  :handle-created (yushan.api-object/handle-created :entities)
-  :handle-no-content (yushan.api-object/handle-no-content :entities)
-  :new? (yushan.api-object/determine-new :entities)
-  :respond-with-entity? (fn [a] true))
-
-(defresource relationship-api-object
-  :available-media-types ["application/json"]
-  :allowed-methods [:get :post :put :delete]
-  :handle-ok (yushan.api-object/handle-ok :relationships)
-  :post! (yushan.api-object/handle-post! :relationships)
-  :put! (yushan.api-object/handle-put! :relationships)
-  :delete! (yushan.api-object/handle-delete! :relationships)
-  :handle-created (yushan.api-object/handle-created :relationships)
-  :handle-no-content (yushan.api-object/handle-no-content :relationships)
-  :new? (yushan.api-object/determine-new :relationships)
-  :respond-with-entity? (fn [a] true))
-
-(defn index-handler [a]
-  (assoc-in
-    (res/file-response "public/index.html")
-    [:headers "Content-Type"]
-    "text/html"))
-
-(def routes
-  ["/" {"thing" #'simple-handler
-        "entities" {"/publius" {"/v1" #'entity-api-object}}
-        "relationships" {"/publius" {"/v1" #'relationship-api-object}}}])
-
-(def route-handler
-  (bidi.ring/make-handler routes))
 
 (defn wrap-bring-params-up [handle-fn]
   (fn [a] (handle-fn (assoc a :params [:foo :bar]))))
@@ -84,7 +28,7 @@
     (wrappas (into a {:body (slurp (:body a))}))))
 
 (defn make-middleware []
- (-> #'route-handler                
+ (-> #'routes/route-handler                
      middleware.keyword-params/wrap-keyword-params
      middleware.params/wrap-params))
     ;wrap-realize-buffer))

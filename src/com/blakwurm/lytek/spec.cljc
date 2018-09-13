@@ -526,6 +526,11 @@
 (sc/def :lytek/count
   coerce-to-int)
 
+(s/def :lytek/mode
+  #{:search :exact})
+(sc/def :lytek/mode
+  coerce-to-keyword)
+
 (defn map->lytek-map [mappo]
   (into {}
         (map

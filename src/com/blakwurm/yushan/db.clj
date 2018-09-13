@@ -27,14 +27,18 @@
 
 (defn make-query-from-map
   "Takes a regular map, and convers it into a honey 'for' clause"
-  [thingmap]
-  (->> thingmap
-       (map (fn [[k v]] [:= k v]))
-       (into [:and])))
+  [thingmap mode]
+  (let [start-symbol (cond
+                       (= mode :exact) :=
+                       (= mode :search) :like
+                       :default :=)]
+    (->> thingmap
+         (map (fn [[k v]] [start-symbol k v]))
+         (into [:and]))))
 
-(defn --make-full-query [{:keys [table query page count] :or {page 0, count 10}}]
+(defn --make-full-query [{:keys [table query page count mode] :or {page 0, count 10, mode :exact}}]
   (let [query-vec (if (vector? query) query
-                                      (make-query-from-map query))
+                                      (make-query-from-map query mode))
         no-where-map {:select [:*]
                       :from   [table]
                       :limit count
