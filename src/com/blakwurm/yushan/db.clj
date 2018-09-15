@@ -39,7 +39,7 @@
                        (= mode :search) :like
                        :default :=)]
     (->> thingmap
-         (map (fn [[k v]] [:= k (add-dressing-to-query v mode)]))
+         (map (fn [[k v]] [start-symbol k (add-dressing-to-query v mode)]))
          (into [:and]))))
 
 (defn --make-full-query [{:keys [table query page count mode] :or {page 0, count 10, mode :exact}}]
