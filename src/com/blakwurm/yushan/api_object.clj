@@ -1,7 +1,9 @@
 (ns com.blakwurm.yushan.api-object
     (:require [liberator.core :as liberator] 
+              [liberator.representation :as librep]
               [clojure.spec.alpha :as s]
               [spec-coerce.core :as sc]
+              [ring.util.response :as res]
               [com.blakwurm.lytek.spec :as lyspec]
               [clojure.set :as c.set]
               [clojure.edn :as edn]
@@ -38,18 +40,18 @@
 
 (defn make-api-response [api-name seq-of-things]
   (if (boolean? seq-of-things)
-     {:resp 1
-      :data [nil]
-      :error ""}
+      {:resp 1
+       :data [nil]
+       :error ""}
    (let [{:keys [hydrate] :as api-map} (api-object-for api-name)
          [resp-code error-message] (determine-api-response-code seq-of-things)]
-     {:resp resp-code
-      :data (map (fn [a] 
-                   (if (map? a)
-                    (hydrate a) 
-                    a))
-                 seq-of-things)
-      :error error-message})))
+      {:resp resp-code
+       :data (map (fn [a] 
+                    (if (map? a)
+                     (hydrate a) 
+                     a))
+                  seq-of-things)
+       :error error-message})))
 
 (defn stringify-keyword-values [mappo]
   (when (map? mappo)
