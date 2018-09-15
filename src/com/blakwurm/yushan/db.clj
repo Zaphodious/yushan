@@ -25,6 +25,12 @@
     (recur)))
 (reset! *--access-go (--init-db-access-go --db-access-chan))
 
+(defn add-dressing-to-query [thingy mode]
+  (if (= mode :search)
+      (str "%" thingy "%")
+      (thingy)))
+  
+
 (defn make-query-from-map
   "Takes a regular map, and convers it into a honey 'for' clause"
   [thingmap mode]
@@ -33,7 +39,7 @@
                        (= mode :search) :like
                        :default :=)]
     (->> thingmap
-         (map (fn [[k v]] [start-symbol k v]))
+         (map (fn [[k v]] [start-symbol k (add-dressing-to-query v mode)]))
          (into [:and]))))
 
 (defn --make-full-query [{:keys [table query page count mode] :or {page 0, count 10, mode :exact}}]
@@ -45,9 +51,10 @@
                       :offset (* page count)}
         where-map (if (empty? query)
                     {}
-                    {:where query-vec})]
-    (println "count is " count)
-    (honey/format (into no-where-map where-map))))
+                    {:where query-vec})
+        query-thing (honey/format (into no-where-map where-map))]
+    (println "query is " query-thing)
+    query-thing))
 
 (defn --access
   "Private function providing access to the DB. Takes a lambda, executes it on the coordinated db thread and returns

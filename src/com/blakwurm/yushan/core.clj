@@ -27,10 +27,16 @@
   (fn [a]
     (wrappas (into a {:body (slurp (:body a))}))))
 
+(defn all-are-welcome [handle-fn]
+  (fn [a]
+    (assoc-in (handle-fn a)
+              [:headers "Access-Control-Allow-Origin"] "*")))
+
 (defn make-middleware []
  (-> #'routes/route-handler                
      middleware.keyword-params/wrap-keyword-params
-     middleware.params/wrap-params))
+     middleware.params/wrap-params
+     all-are-welcome))
     ;wrap-realize-buffer))
     ;(middleware.file/wrap-file "public")))
     ;middleware.content-type/wrap-content-type
